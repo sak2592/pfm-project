@@ -242,9 +242,6 @@
                 <button class="btn btn-secondary" onclick="syncNow()">
                     <i class="fas fa-rotate"></i> Sync Now
                 </button>
-                <button class="btn btn-danger" onclick="resetAll()">
-                    <i class="fas fa-rotate-left"></i> Reset
-                </button>
             </div>
         </div>
 
@@ -365,6 +362,12 @@
                     <div class="card-label">Emergency Fund</div>
                     <div class="card-value" id="dbEmergency">0 mo</div>
                     <div class="card-sub">Months of expenses covered</div>
+                </div>
+                <div class="dash-card" style="border-color: var(--pink);">
+                    <div class="card-icon" style="background: rgba(236,72,153,0.15); color: var(--pink);"><i class="fas fa-umbrella"></i></div>
+                    <div class="card-label">Insurance - Yearly Total</div>
+                    <div class="card-value" id="dbInsuranceYearly">Rs.0</div>
+                    <div class="card-sub" id="dbInsuranceSub">0 policies</div>
                 </div>
             </div>
             <div class="chart-grid">
@@ -765,12 +768,32 @@
         <div class="tab-pane" id="tab-loans">
             <div class="panel">
                 <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-chart-pie"></i> Loan Overview</div>
+                </div>
+                <div class="dashboard-grid" style="margin-bottom:0;">
+                    <div class="dash-card budget">
+                        <div class="card-icon"><i class="fas fa-credit-card"></i></div>
+                        <div class="card-label">Consumer Loans - Outstanding</div>
+                        <div class="card-value" id="consumerLoanTotalAmount">₹0</div>
+                        <div class="card-sub" id="consumerLoanCountSub">0 loans</div>
+                    </div>
+                    <div id="loanTypeNodalCards" style="display:contents;"></div>
+                    <div class="dash-card savings">
+                        <div class="card-icon"><i class="fas fa-box-archive"></i></div>
+                        <div class="card-label">Inactive / Completed Loans - Original</div>
+                        <div class="card-value" id="inactiveLoanTotalAmount">₹0</div>
+                        <div class="card-sub" id="inactiveLoanCountSub">0 loans</div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
                     <div class="panel-title"><i class="fas fa-landmark"></i> Loan Tracker</div>
                     <button class="btn btn-primary" onclick="openModal('loan')"><i class="fas fa-plus"></i> Add Loan</button>
                 </div>
                 <div class="table-container">
                     <table>
-                        <thead><tr><th>Loan</th><th>Lender</th><th>Original</th><th>Outstanding</th><th>Rate</th><th>EMI</th><th>Tenure</th><th>Remaining</th><th>% Paid</th><th>Status</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Loan</th><th>Lender</th><th>Original</th><th>Outstanding</th><th>Rate</th><th>EMI</th><th>Tenure</th><th>Remaining</th><th>Total Payable Left</th><th>% Paid</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody id="loanTable"></tbody>
                     </table>
                 </div>
@@ -778,10 +801,18 @@
             <div class="panel">
                 <div class="panel-header" style="cursor:pointer;" onclick="toggleCompletedLoans()">
                     <div class="panel-title"><i class="fas fa-box-archive"></i> Inactive / Completed Loans (<span id="completedLoanCount">0</span>)</div>
-                    <button class="btn btn-secondary" type="button" id="completedLoanToggleBtn" onclick="event.stopPropagation(); toggleCompletedLoans();"><i class="fas fa-chevron-down"></i> Show</button>
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;" onclick="event.stopPropagation();">
+                        <select class="config-input" id="inactiveLoanYearFilter" onchange="renderLoans()" style="width:auto; min-width:150px;">
+                            <option value="">All Years</option>
+                        </select>
+                        <button class="btn btn-secondary" type="button" id="completedLoanToggleBtn" onclick="event.stopPropagation(); toggleCompletedLoans();"><i class="fas fa-chevron-down"></i> Show</button>
+                    </div>
                 </div>
-                <div id="completedLoanSection" style="display:none;">
-                    <div id="completedLoanCards"></div>
+                <div class="table-container" id="completedLoanSection" style="display:none; background: rgba(16,185,129,0.06); border-radius: 10px; padding: 4px;">
+                    <table>
+                        <thead><tr><th>Loan</th><th>Lender</th><th>Start Date</th><th>Original</th><th>Rate</th><th>EMI</th><th>Tenure</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="loanTableCompleted"></tbody>
+                    </table>
                 </div>
             </div>
             <div class="panel">
@@ -954,7 +985,7 @@ const DEFAULT_CATEGORY_CONFIG = [
 ];
 
 const DEFAULT_LOANS = [
-    { id: 'loan_1', name: 'Home Loan', lender: 'HDFC Bank', principal: 7500000, outstanding: 5800000, rate: 8.5, tenure: 240, emi: 32000, startDate: '2020-01-01', type: 'Mortgage' },
+    { id: 'loan_1', name: 'Home Loan', lender: 'HDFC Bank', principal: 7500000, outstanding: 6260126, rate: 8.5, tenure: 240, emi: 65087, startDate: '2020-01-01', type: 'Mortgage' },
     { id: 'loan_2', name: 'Laptop EMI', lender: 'Bajaj Finance', principal: 120000, outstanding: 45000, rate: 0, tenure: 15, emi: 8000, startDate: '2024-01-01', type: 'Consumer' },
     { id: 'loan_3', name: 'Phone EMI', lender: 'HDFC Bank', principal: 80000, outstanding: 20000, rate: 0, tenure: 15, emi: 5333, startDate: '2024-06-01', type: 'Consumer' }
 ];
@@ -1229,6 +1260,42 @@ function parseDate(dateStr) {
     return new Date(dateStr);
 }
 
+// ---- Loan / EMI math helpers ----
+// Standard reducing-balance EMI formula: EMI = P * r * (1+r)^n / ((1+r)^n - 1)
+function calcEMI(principal, annualRatePct, tenureMonths) {
+    const r = (annualRatePct || 0) / 12 / 100;
+    if (r === 0) return tenureMonths > 0 ? principal / tenureMonths : 0;
+    const factor = Math.pow(1 + r, tenureMonths);
+    return principal * r * factor / (factor - 1);
+}
+
+// Total amount payable over the full loan tenure (principal + total interest)
+function calcTotalPayable(principal, annualRatePct, tenureMonths) {
+    return calcEMI(principal, annualRatePct, tenureMonths) * tenureMonths;
+}
+
+// Outstanding balance remaining after `monthsElapsed` EMIs have been paid
+function calcOutstandingBalance(principal, annualRatePct, tenureMonths, monthsElapsed) {
+    const r = (annualRatePct || 0) / 12 / 100;
+    const n = Math.min(Math.max(monthsElapsed, 0), tenureMonths);
+    if (r === 0) return Math.max(0, principal - (principal / tenureMonths) * n);
+    const emi = calcEMI(principal, annualRatePct, tenureMonths);
+    const factor = Math.pow(1 + r, n);
+    return Math.max(0, principal * factor - emi * (factor - 1) / r);
+}
+
+function loanMonthsElapsed(item, today) {
+    const start = parseDate(item.startDate);
+    return Math.max(0, (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth()));
+}
+
+// Remaining amount still payable (future EMIs) for a single loan from today onward
+function loanRemainingPayable(item, today) {
+    const monthsElapsed = loanMonthsElapsed(item, today);
+    const monthsRemaining = Math.max(0, item.tenure - monthsElapsed);
+    return item.emi * monthsRemaining;
+}
+
 function formatMonth(dateStr) {
     const d = parseDate(dateStr);
     return d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
@@ -1328,6 +1395,16 @@ function renderDashboard() {
     const emergencyFund = state.assets.find(a => a.name === 'Emergency Fund')?.currentValue || 0;
     const emergencyMonths = monthlyExpenses > 0 ? emergencyFund / monthlyExpenses : 0;
 
+    // Insurance nodal: annualized active recurring premiums (Life/Health/Vehicle etc.)
+    // + any one-off Insurance expense transactions logged this year that aren't tied to a recurring rule.
+    const currentYear = new Date().getFullYear();
+    const activeInsuranceRules = (state.recurringItems || []).filter(r => r.category === 'Insurance' && r.active);
+    const insuranceRecurringTotal = activeInsuranceRules.reduce((s, r) => s + (r.amount || 0) * periodsPerYear(r.frequency), 0);
+    const oneOffInsuranceTxns = state.transactions.filter(t => t.category === 'Insurance' && t.type === 'Expense' && !t.recurringId && parseDate(t.date).getFullYear() === currentYear);
+    const insuranceOneOffTotal = oneOffInsuranceTxns.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+    const insuranceYearlyTotal = insuranceRecurringTotal + insuranceOneOffTotal;
+    const insurancePolicyCount = activeInsuranceRules.length + oneOffInsuranceTxns.length;
+
     let healthScore = 100;
     if (totalEMI / totalIncome > 0.5) healthScore -= 20;
     if (totalEMI / totalIncome > 0.7) healthScore -= 20;
@@ -1351,6 +1428,8 @@ function renderDashboard() {
     el('dbNetWorth', fmt(netWorth));
     el('dbHealthScore', Math.round(healthScore));
     el('dbEmergency', emergencyMonths.toFixed(1) + ' months');
+    el('dbInsuranceYearly', fmt(insuranceYearlyTotal));
+    el('dbInsuranceSub', insurancePolicyCount + ' polic' + (insurancePolicyCount !== 1 ? 'ies' : 'y') + ' this year');
 
     const savingsEl = document.getElementById('dbSavingsRate');
     if (savingsEl) {
@@ -1528,16 +1607,13 @@ function loanRowHtml(item, today) {
     const monthsRemaining = Math.max(0, item.tenure - monthsElapsed);
     const paid = item.principal - item.outstanding;
     const pctPaid = item.principal > 0 ? (paid / item.principal) * 100 : 0;
-    return '<tr><td><strong>' + item.name + '</strong></td><td>' + item.lender + '</td><td>' + fmt(item.principal) + '</td><td>' + fmt(item.outstanding) + '</td><td>' + item.rate + '%</td><td>' + fmt(item.emi) + '</td><td>' + item.tenure + ' mo</td><td>' + monthsRemaining + ' mo</td><td>' + pctPaid.toFixed(1) + '%</td><td><span class="badge ' + (pctPaid >= 100 ? 'badge-success' : 'badge-warning') + '">' + (pctPaid >= 100 ? 'Completed' : 'Active') + '</span></td><td><div class="action-btns"><button class="action-btn edit" onclick="editLoan(\'' + item.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteLoan(\'' + item.id + '\')"><i class="fas fa-trash"></i></button></div></td></tr>';
+    const totalPayableLeft = item.emi * monthsRemaining;
+    return '<tr><td><strong>' + item.name + '</strong></td><td>' + item.lender + '</td><td>' + fmt(item.principal) + '</td><td>' + fmt(item.outstanding) + '</td><td>' + item.rate + '%</td><td>' + fmt(item.emi) + '</td><td>' + item.tenure + ' mo</td><td>' + monthsRemaining + ' mo</td><td>' + fmt(totalPayableLeft) + '</td><td>' + pctPaid.toFixed(1) + '%</td><td><span class="badge ' + (pctPaid >= 100 ? 'badge-success' : 'badge-warning') + '">' + (pctPaid >= 100 ? 'Completed' : 'Active') + '</span></td><td><div class="action-btns"><button class="action-btn edit" onclick="editLoan(\'' + item.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteLoan(\'' + item.id + '\')"><i class="fas fa-trash"></i></button></div></td></tr>';
 }
 
-function loanCardHtml(item, today) {
+function completedLoanRowHtml(item) {
     const start = parseDate(item.startDate);
-    const paid = item.principal - item.outstanding;
-    const pctPaid = item.principal > 0 ? Math.min(100, (paid / item.principal) * 100) : 100;
-    const monthsElapsed = Math.max(0, (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth()));
-    const closedAround = new Date(start.getFullYear(), start.getMonth() + item.tenure, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-    return '<div class="goal-card"><div class="goal-header"><div class="goal-title"><i class="fas fa-circle-check" style="color:var(--secondary);"></i> ' + item.name + '<span class="badge badge-success" style="margin-left:10px;">Completed</span></div><div style="display:flex; align-items:center; gap:14px;"><div style="font-size:1.2rem; font-weight:700; color:var(--secondary);">' + pctPaid.toFixed(0) + '%</div><div class="action-btns"><button class="action-btn edit" onclick="editLoan(\'' + item.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteLoan(\'' + item.id + '\')"><i class="fas fa-trash"></i></button></div></div></div><div style="color:var(--text-muted); font-size:0.9rem; margin-bottom:8px;">' + item.lender + ' · ' + item.rate + '% interest · ' + item.tenure + ' month tenure</div><div class="goal-progress"><div class="goal-progress-fill" style="width:' + pctPaid.toFixed(1) + '%; background:var(--secondary);"></div></div><div class="goal-stats"><div class="goal-stat"><div class="goal-stat-value">' + fmt(item.principal) + '</div><div class="goal-stat-label">Original Amount</div></div><div class="goal-stat"><div class="goal-stat-value">' + fmt(item.emi) + '</div><div class="goal-stat-label">EMI Paid</div></div><div class="goal-stat"><div class="goal-stat-value">' + closedAround + '</div><div class="goal-stat-label">Closed Around</div></div></div></div>';
+    return '<tr style="background: rgba(16,185,129,0.08); border-left: 3px solid var(--secondary);"><td><strong><i class="fas fa-circle-check" style="color:var(--secondary); margin-right:6px;"></i>' + item.name + '</strong></td><td>' + item.lender + '</td><td>' + start.toLocaleDateString('en-IN') + '</td><td>' + fmt(item.principal) + '</td><td>' + item.rate + '%</td><td>' + fmt(item.emi) + '</td><td>' + item.tenure + ' mo</td><td><span class="badge badge-success"><i class="fas fa-check"></i> Completed</span></td><td><div class="action-btns"><button class="action-btn edit" onclick="editLoan(\'' + item.id + '\')"><i class="fas fa-pen"></i></button></div></td></tr>';
 }
 
 function isLoanCompleted(item) {
@@ -1546,29 +1622,97 @@ function isLoanCompleted(item) {
     return pctPaid >= 100 || item.outstanding <= 0;
 }
 
+function getInactiveLoanYear(item) {
+    return parseDate(item.startDate).getFullYear();
+}
+
+function populateInactiveLoanYearFilter(completedLoansAll) {
+    const select = document.getElementById('inactiveLoanYearFilter');
+    if (!select) return;
+    const years = Array.from(new Set(completedLoansAll.map(getInactiveLoanYear))).sort((a, b) => b - a);
+    const current = select.value;
+    select.innerHTML = '<option value="">All Years</option>' + years.map(y => '<option value="' + y + '">' + y + '</option>').join('');
+    if (current && years.includes(parseInt(current))) select.value = current;
+}
+
 function renderLoans() {
     const tbody = document.getElementById('loanTable');
-    const completedCards = document.getElementById('completedLoanCards');
+    const completedTbody = document.getElementById('loanTableCompleted');
     const countEl = document.getElementById('completedLoanCount');
     if (!tbody) return;
     const today = new Date();
     const activeLoans = state.loans.filter(item => !isLoanCompleted(item));
-    const completedLoans = state.loans.filter(item => isLoanCompleted(item));
+    const completedLoansAll = state.loans.filter(item => isLoanCompleted(item))
+        .sort((a, b) => parseDate(a.startDate) - parseDate(b.startDate));
+
+    populateInactiveLoanYearFilter(completedLoansAll);
+    const yearFilterEl = document.getElementById('inactiveLoanYearFilter');
+    const selectedYear = yearFilterEl && yearFilterEl.value ? parseInt(yearFilterEl.value) : null;
+    const completedLoans = selectedYear ? completedLoansAll.filter(item => getInactiveLoanYear(item) === selectedYear) : completedLoansAll;
 
     if (activeLoans.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><i class="fas fa-landmark"></i><p>No active loans. Add a loan or check Inactive/Completed Loans below.</p></div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12"><div class="empty-state"><i class="fas fa-landmark"></i><p>No active loans. Add a loan or check Inactive/Completed Loans below.</p></div></td></tr>';
     } else {
         tbody.innerHTML = activeLoans.map(item => loanRowHtml(item, today)).join('');
     }
 
     if (countEl) countEl.textContent = completedLoans.length;
-    if (completedCards) {
+    if (completedTbody) {
         if (completedLoans.length === 0) {
-            completedCards.innerHTML = '<div class="empty-state"><i class="fas fa-box-archive"></i><p>No completed/inactive loans yet</p></div>';
+            completedTbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-box-archive"></i><p>' + (selectedYear ? 'No completed/inactive loans starting in ' + selectedYear : 'No completed/inactive loans yet') + '</p></div></td></tr>';
         } else {
-            completedCards.innerHTML = completedLoans.map(item => loanCardHtml(item, today)).join('');
+            completedTbody.innerHTML = completedLoans.map(item => completedLoanRowHtml(item)).join('');
         }
     }
+
+    // Nodal summary cards: Consumer loans, separate Home/Personal/Car nodals (only if present), Other, Inactive loans
+    const consumerLoans = activeLoans.filter(l => l.type === 'Consumer');
+    const consumerOutstanding = consumerLoans.reduce((s, l) => s + l.outstanding, 0);
+    const inactiveTotalPrincipal = completedLoansAll.reduce((s, l) => s + l.principal, 0);
+
+    const consumerAmountEl = document.getElementById('consumerLoanTotalAmount');
+    if (consumerAmountEl) consumerAmountEl.textContent = fmt(consumerOutstanding);
+    const consumerSubEl = document.getElementById('consumerLoanCountSub');
+    if (consumerSubEl) consumerSubEl.textContent = consumerLoans.length + ' loan' + (consumerLoans.length !== 1 ? 's' : '');
+
+    // Build one nodal card per loan type, shown only when that type has active loans
+    const nodalDefs = [
+        { type: 'Mortgage', label: 'Home Loan', icon: 'fa-house', cls: 'loan' },
+        { type: 'Personal', label: 'Personal Loan', icon: 'fa-user', cls: 'emi' },
+        { type: 'Car', label: 'Car Loan', icon: 'fa-car', cls: 'health' }
+    ];
+    const coveredTypes = nodalDefs.map(d => d.type).concat('Consumer');
+    const otherActiveLoans = activeLoans.filter(l => !coveredTypes.includes(l.type));
+
+    const nodalCardsHtml = nodalDefs.map(def => {
+        const loans = activeLoans.filter(l => l.type === def.type);
+        if (loans.length === 0) return '';
+        const outstanding = loans.reduce((s, l) => s + l.outstanding, 0);
+        const totalPayableLeft = loans.reduce((s, l) => s + loanRemainingPayable(l, today), 0);
+        return '<div class="dash-card ' + def.cls + '">' +
+            '<div class="card-icon"><i class="fas ' + def.icon + '"></i></div>' +
+            '<div class="card-label">' + def.label + (loans.length > 1 ? 's' : '') + ' - Outstanding</div>' +
+            '<div class="card-value">' + fmt(outstanding) + '</div>' +
+            '<div class="card-sub">' + loans.length + ' loan' + (loans.length !== 1 ? 's' : '') + ' \u00b7 Total payable left: ' + fmt(totalPayableLeft) + '</div>' +
+        '</div>';
+    }).join('') + (otherActiveLoans.length ? (() => {
+        const outstanding = otherActiveLoans.reduce((s, l) => s + l.outstanding, 0);
+        const totalPayableLeft = otherActiveLoans.reduce((s, l) => s + loanRemainingPayable(l, today), 0);
+        return '<div class="dash-card loan">' +
+            '<div class="card-icon"><i class="fas fa-file-invoice-dollar"></i></div>' +
+            '<div class="card-label">Other Loans - Outstanding</div>' +
+            '<div class="card-value">' + fmt(outstanding) + '</div>' +
+            '<div class="card-sub">' + otherActiveLoans.length + ' loan' + (otherActiveLoans.length !== 1 ? 's' : '') + ' \u00b7 Total payable left: ' + fmt(totalPayableLeft) + '</div>' +
+        '</div>';
+    })() : '');
+
+    const nodalContainer = document.getElementById('loanTypeNodalCards');
+    if (nodalContainer) nodalContainer.innerHTML = nodalCardsHtml;
+
+    const inactiveAmountEl = document.getElementById('inactiveLoanTotalAmount');
+    if (inactiveAmountEl) inactiveAmountEl.textContent = fmt(inactiveTotalPrincipal);
+    const inactiveSubEl = document.getElementById('inactiveLoanCountSub');
+    if (inactiveSubEl) inactiveSubEl.textContent = completedLoansAll.length + ' loan' + (completedLoansAll.length !== 1 ? 's' : '');
 }
 
 function toggleCompletedLoans() {
