@@ -6,6 +6,7 @@
     <title>Personal Financial Management System</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -175,6 +176,10 @@
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
         .modal-overlay.active { display: flex; animation: fadeIn 0.2s ease; }
         .modal { background: var(--card-bg); border-radius: 20px; padding: 30px; width: 100%; max-width: 500px; border: 1px solid var(--border); box-shadow: var(--shadow); max-height: 90vh; overflow-y: auto; }
+        .modal.modal-wide { max-width: 1200px; }
+        .import-row select, .import-row input { background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 8px; font-family: inherit; font-size: 0.82rem; width: 100%; }
+        .import-row select:focus, .import-row input:focus { outline: none; border-color: var(--primary); }
+        .import-summary-bar { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; background: rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-radius:12px; padding:14px 18px; margin-bottom:16px; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
         .modal-title { font-size: 1.2rem; font-weight: 700; }
         .modal-close { width: 36px; height: 36px; border-radius: 10px; border: none; background: rgba(255,255,255,0.05); color: var(--text-muted); cursor: pointer; font-size: 1.2rem; transition: all 0.2s; }
@@ -428,12 +433,16 @@
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title"><i class="fas fa-hand-holding-dollar"></i> Expense Tracker</div>
-                    
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <input type="file" id="gpayFileInput" accept="application/pdf" style="display:none;" onchange="handleGpayFile(event)">
+                        <button class="btn btn-secondary" onclick="document.getElementById('gpayFileInput').click()">
+                            <i class="fas fa-file-pdf"></i> Import GPay Statement
+                        </button>
+                    </div>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
-                    <div class="form-group" style="margin:0;"><label>Filter Category</label><select id="expenseFilterCategory" class="config-input" onchange="renderExpense()"><option value="">All Categories</option></select></div>
-                    <div class="form-group" style="margin:0;"><label>Year</label><select id="expenseFilterYear" class="config-input" onchange="renderExpense()"><option value="">All Years</option></select></div>
-                    <div class="form-group" style="margin:0;"><label>Month</label><select id="expenseFilterMonth" class="config-input" onchange="renderExpense()"><option value="">All Months</option></select></div>
+                    <div class="form-group" style="margin:0;"><label>Year</label><select id="expenseFilterYear" class="config-input" onchange="onExpenseTopFilterChange()"><option value="">All Years</option></select></div>
+                    <div class="form-group" style="margin:0;"><label>Month</label><select id="expenseFilterMonth" class="config-input" onchange="onExpenseTopFilterChange()"><option value="">All Months</option></select></div>
                 </div>
                 <div class="dashboard-grid" style="margin-bottom: 20px;">
                     <div class="dash-card emi">
@@ -453,9 +462,15 @@
             </div>
             <div class="panel">
                 <div class="panel-header">
-                    <div class="panel-title"><i class="fas fa-chart-pie"></i> Category-wise Breakdown</div>
+                    <div class="panel-title"><i class="fas fa-chart-pie"></i> Category-wise Breakdown <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(click a category to see its subcategories and expense history)</span></div>
                 </div>
                 <div class="dashboard-grid" id="expenseCategoryBreakdown"></div>
+            </div>
+            <div class="panel" id="expenseSubcatPanel" style="display:none;">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-diagram-project"></i> Subcategory Breakdown <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(click a subcategory to trim Expense History further)</span></div>
+                </div>
+                <div class="dashboard-grid" id="expenseSubcategoryBreakdown"></div>
             </div>
             <div class="panel">
                 <div class="panel-header">
@@ -479,10 +494,11 @@
                     <div class="chart-container"><canvas id="expenseCategoryChart"></canvas></div>
                 </div>
             </div>
-            <div class="panel">
+            <div class="panel" id="expenseHistoryPanel" style="display:none;">
                 <div class="panel-header">
                     <div class="panel-title"><i class="fas fa-list"></i> Expense History</div>
                 </div>
+                <div id="expenseSubcatFilterBadge"></div>
                 <div class="table-container">
                     <table>
                         <thead><tr><th>ID</th><th>Date</th><th>Category</th><th>Subcategory</th><th>Amount</th><th>% of Salary</th><th>Payment</th><th>Vendor</th><th>Actions</th></tr></thead>
@@ -922,6 +938,39 @@
         </div>
     </div>
 
+    <!-- GPay Statement Import Review Modal -->
+    <div class="modal-overlay" id="importModal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fas fa-file-pdf"></i> Review Google Pay Import</div>
+                <button class="modal-close" onclick="closeImportModal()">&times;</button>
+            </div>
+            <div id="importSummaryBar" class="import-summary-bar"></div>
+            <div class="table-container" style="max-height:50vh;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:34px;"><input type="checkbox" id="importSelectAll" checked onchange="toggleAllImportRows(this.checked)"></th>
+                            <th>Date</th>
+                            <th>Paid To / From</th>
+                            <th>Amount</th>
+                            <th>Type</th>
+                            <th>Category</th>
+                            <th>Subcategory</th>
+                            <th>Classification</th>
+                            <th style="width:44px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="importReviewTable"></tbody>
+                </table>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:20px;">
+                <button class="btn btn-secondary" style="flex:1;" onclick="closeImportModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex:1;" onclick="confirmGpayImport()"><i class="fas fa-check"></i> Import Selected</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast-container" id="toastContainer"></div>
 
 <script>
@@ -1060,6 +1109,10 @@ let state = {
 let charts = {};
 let editingId = null;
 let expenseFiltersInitialized = false;
+let expenseSubcatFilterKey = '';
+let expenseSubcatEntries = [];
+let expenseCatEntries = [];
+let expenseSelectedCategory = '';
 let investmentFiltersInitialized = false;
 let editingType = null;
 let currentTab = 'overview';
@@ -1174,10 +1227,7 @@ async function apiCall(action, payload) {
     const res = await fetch(CONFIG.GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(body),
-        // keepalive lets this request finish sending even if the tab is refreshed/closed
-        // right after an edit, instead of the browser cancelling it mid-flight.
-        keepalive: true
+        body: JSON.stringify(body)
     });
     return await res.json();
 }
@@ -1204,38 +1254,20 @@ async function loadDataFromSheets() {
     }
 }
 
-let pendingSyncCount = 0;
-
 async function saveDataToSheets() {
     if (!CONFIG.GAS_URL) return;
-    pendingSyncCount++;
     setSyncStatus('syncing', 'Syncing to Sheets...');
     try {
         const result = await apiCall('save', { state });
         if (result.status === 'ok') {
             setSyncStatus('synced', 'Connected to Sheets');
         } else {
-            console.error('Sheets save returned an error:', result.message || result);
             setSyncStatus('error', 'Sync failed');
-            showToast('Could not save to Google Sheets: ' + (result.message || 'unknown error'), 'error');
         }
     } catch (e) {
-        console.error('Sheets save failed:', e);
-        setSyncStatus('offline', 'Offline - changes NOT saved to Sheets');
-        showToast('Could not reach Google Sheets - this change is only saved locally on this device.', 'error');
-    } finally {
-        pendingSyncCount = Math.max(0, pendingSyncCount - 1);
+        setSyncStatus('offline', 'Offline - changes queued');
     }
 }
-
-// Warn before leaving/refreshing if a save to Sheets hasn't finished yet, so an edit
-// made just before closing the tab doesn't silently get lost.
-window.addEventListener('beforeunload', (e) => {
-    if (pendingSyncCount > 0) {
-        e.preventDefault();
-        e.returnValue = '';
-    }
-});
 
 async function syncNow() {
     await saveDataToSheets();
@@ -2517,14 +2549,12 @@ function deleteLoan(id) {
 function updateCategoryPct(id, pct) {
     const cat = state.categories.find(c => c.id === id);
     if (cat) cat.targetPct = parseFloat(pct) || 0;
-    saveState();
     renderBudgetConfig();
 }
 
 function updateCategoryPriority(id, priority) {
     const cat = state.categories.find(c => c.id === id);
     if (cat) cat.priority = priority;
-    saveState();
     renderBudgetConfig();
 }
 
@@ -2755,11 +2785,47 @@ function renderIncomeCharts(incomeData) {
 
 
 
+function onExpenseTopFilterChange() {
+    // Changing category/year/month can invalidate the current subcategory drill-down, so reset it
+    // (renderExpense() also guards against a stale key, but resetting here keeps intent clear).
+    expenseSubcatFilterKey = '';
+    renderExpense();
+}
+
+function filterExpenseByCategoryIndex(idx) {
+    const entry = expenseCatEntries[idx];
+    if (!entry) return;
+    const isActive = expenseSelectedCategory === entry.category;
+    expenseSelectedCategory = isActive ? '' : entry.category;
+    // Selecting/deselecting a category invalidates any subcategory drill-down
+    expenseSubcatFilterKey = '';
+    renderExpense();
+}
+
+function clearExpenseCategoryFilter() {
+    expenseSelectedCategory = '';
+    expenseSubcatFilterKey = '';
+    renderExpense();
+}
+
+function filterExpenseBySubcategoryIndex(idx) {
+    const entry = expenseSubcatEntries[idx];
+    if (!entry) return;
+    const key = entry.category + '|' + entry.subcategory;
+    expenseSubcatFilterKey = (expenseSubcatFilterKey === key) ? '' : key;
+    renderExpense();
+}
+
+function clearExpenseSubcatFilter() {
+    expenseSubcatFilterKey = '';
+    renderExpense();
+}
+
 function renderExpense() {
     const tbody = document.getElementById('expenseTable');
     if (!tbody) return;
 
-    const filterCat = document.getElementById('expenseFilterCategory')?.value || '';
+    const filterCat = expenseSelectedCategory;
     const filterYear = document.getElementById('expenseFilterYear')?.value || '';
     let filterMonth = document.getElementById('expenseFilterMonth')?.value || '';
 
@@ -2783,10 +2849,20 @@ function renderExpense() {
         if (monthSelectEl) monthSelectEl.value = '';
     }
 
-    let filtered = state.transactions.filter(t => t.type === 'Expense').sort((a, b) => parseDate(b.date) - parseDate(a.date));
-    if (filterCat) filtered = filtered.filter(t => t.category === filterCat);
-    if (filterYear) filtered = filtered.filter(t => parseDate(t.date).getFullYear().toString() === filterYear);
-    if (filterMonth) filtered = filtered.filter(t => getMonthYear(t.date) === filterMonth);
+    let baseFiltered = state.transactions.filter(t => t.type === 'Expense').sort((a, b) => parseDate(b.date) - parseDate(a.date));
+    if (filterCat) baseFiltered = baseFiltered.filter(t => t.category === filterCat);
+    if (filterYear) baseFiltered = baseFiltered.filter(t => parseDate(t.date).getFullYear().toString() === filterYear);
+    if (filterMonth) baseFiltered = baseFiltered.filter(t => getMonthYear(t.date) === filterMonth);
+
+    // If the active subcategory filter no longer exists in the current category/year/month scope
+    // (e.g. the user switched category or month), drop it rather than showing an empty table silently.
+    if (expenseSubcatFilterKey && !baseFiltered.some(t => (t.category + '|' + (t.subcategory || '(No Subcategory)')) === expenseSubcatFilterKey)) {
+        expenseSubcatFilterKey = '';
+    }
+
+    let filtered = expenseSubcatFilterKey
+        ? baseFiltered.filter(t => (t.category + '|' + (t.subcategory || '(No Subcategory)')) === expenseSubcatFilterKey)
+        : baseFiltered;
 
     // Single dynamic total card — reflects whatever filters are active
     const filteredTotal = filtered.reduce((s, t) => s + t.amount, 0);
@@ -2810,7 +2886,12 @@ function renderExpense() {
     el('expenseFixedPct', fixedExpPct.toFixed(1) + '% of income');
     el('expenseFixedSub', fixedExpCount + ' fixed item' + (fixedExpCount === 1 ? '' : 's') + ' · ' + currentMonthStr);
 
-    if (filtered.length === 0) {
+    const historyPanel = document.getElementById('expenseHistoryPanel');
+    if (historyPanel) historyPanel.style.display = filterCat ? '' : 'none';
+
+    if (!filterCat) {
+        tbody.innerHTML = '';
+    } else if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-hand-holding-dollar"></i><p>No expenses found</p></div></td></tr>';
     } else {
         tbody.innerHTML = filtered.map(t => {
@@ -2823,12 +2904,15 @@ function renderExpense() {
         }).join('');
     }
 
-    // Category-wise breakdown as small colorful nodal cards — respects active filters
+    // Category-wise breakdown as small colorful nodal cards — respects category/year/month filters,
+    // but not the subcategory drill-down, so all categories stay visible to switch between.
     const breakdownGrid = document.getElementById('expenseCategoryBreakdown');
     if (breakdownGrid) {
         const catBreakdown = {};
-        filtered.forEach(t => { catBreakdown[t.category] = (catBreakdown[t.category] || 0) + t.amount; });
+        baseFiltered.forEach(t => { catBreakdown[t.category] = (catBreakdown[t.category] || 0) + t.amount; });
         const catEntries = Object.entries(catBreakdown).sort((a, b) => b[1] - a[1]);
+        expenseCatEntries = catEntries.map(([cat, amt]) => ({ category: cat, amount: amt }));
+        const baseFilteredTotal = baseFiltered.reduce((s, t) => s + t.amount, 0);
         if (catEntries.length === 0) {
             breakdownGrid.innerHTML = '<div class="empty-state"><i class="fas fa-chart-pie"></i><p>No expenses for the selected filter</p></div>';
         } else {
@@ -2840,21 +2924,72 @@ function renderExpense() {
                 'EMI': 'fa-hand-holding-dollar', 'Loan': 'fa-hand-holding-dollar', 'Investment': 'fa-chart-line',
                 'Subscription': 'fa-rotate', 'Personal Care': 'fa-spa', 'Gifts': 'fa-gift', 'Fuel': 'fa-gas-pump' };
             breakdownGrid.innerHTML = catEntries.map(([cat, amt], idx) => {
-                const pct = filteredTotal > 0 ? (amt / filteredTotal) * 100 : 0;
+                const pct = baseFilteredTotal > 0 ? (amt / baseFilteredTotal) * 100 : 0;
                 const colorClass = colorClasses[idx % colorClasses.length];
                 const icon = iconMap[cat] || 'fa-tag';
-                return '<div class="dash-card ' + colorClass + '"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div></div>';
+                const isActive = cat === filterCat;
+                return '<div class="dash-card ' + colorClass + '" style="cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterExpenseByCategoryIndex(' + idx + ')" title="Click to view subcategories and transactions for this category"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div>' + (isActive ? '<div class="card-sub"><strong style="color:var(--primary);">selected</strong></div>' : '') + '</div>';
             }).join('');
         }
     }
 
-    // Populate filters
-    const catSelect = document.getElementById('expenseFilterCategory');
-    if (catSelect) {
-        const cats = [...new Set(state.transactions.filter(t => t.type === 'Expense').map(t => t.category))].sort();
-        catSelect.innerHTML = '<option value="">All Categories</option>' + cats.map(c => '<option value="' + c + '">' + c + '</option>').join('');
-        if (filterCat) catSelect.value = filterCat;
+    // Subcategory breakdown — one nodal card per (category, subcategory) pair, showing the
+    // transaction count and total behind it. Clicking a card drills the Expense History table
+    // below down to just that subcategory's transactions; clicking the same card again clears it.
+    const subcatPanel = document.getElementById('expenseSubcatPanel');
+    if (subcatPanel) subcatPanel.style.display = filterCat ? '' : 'none';
+
+    const subBreakdownGrid = document.getElementById('expenseSubcategoryBreakdown');
+    if (subBreakdownGrid) {
+        if (!filterCat) {
+            subBreakdownGrid.innerHTML = '';
+            expenseSubcatEntries = [];
+        } else {
+        const subMap = {};
+        baseFiltered.forEach(t => {
+            const sub = t.subcategory || '(No Subcategory)';
+            const key = t.category + '|' + sub;
+            if (!subMap[key]) subMap[key] = { category: t.category, subcategory: sub, amount: 0, count: 0 };
+            subMap[key].amount += t.amount;
+            subMap[key].count += 1;
+        });
+        const subEntries = Object.values(subMap).sort((a, b) => b.amount - a.amount);
+        expenseSubcatEntries = subEntries;
+        if (subEntries.length === 0) {
+            subBreakdownGrid.innerHTML = '<div class="empty-state"><i class="fas fa-diagram-project"></i><p>No expenses for the selected filter</p></div>';
+        } else {
+            const colorClasses = ['loan', 'emi', 'health', 'budget', 'networth', 'savings', 'salary'];
+            subBreakdownGrid.innerHTML = subEntries.map((s, idx) => {
+                const key = s.category + '|' + s.subcategory;
+                const isActive = key === expenseSubcatFilterKey;
+                const colorClass = colorClasses[idx % colorClasses.length];
+                return '<div class="dash-card ' + colorClass + '" style="cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterExpenseBySubcategoryIndex(' + idx + ')" title="Click to filter Expense History to this subcategory">' +
+                    '<div class="card-icon"><i class="fas fa-diagram-project"></i></div>' +
+                    '<div class="card-label">' + s.subcategory + '</div>' +
+                    '<div class="card-value">' + fmt(s.amount) + '</div>' +
+                    '<div class="card-change"><i class="fas fa-receipt"></i> ' + s.count + ' transaction' + (s.count === 1 ? '' : 's') + '</div>' +
+                    '<div class="card-sub">' + s.category + (isActive ? ' · <strong style="color:var(--primary);">shown below</strong>' : '') + '</div>' +
+                '</div>';
+            }).join('');
+        }
+        }
     }
+
+    // Active subcategory filter badge above the Expense History table
+    const subcatBadgeEl = document.getElementById('expenseSubcatFilterBadge');
+    if (subcatBadgeEl) {
+        if (expenseSubcatFilterKey) {
+            const [badgeCat, badgeSub] = expenseSubcatFilterKey.split('|');
+            subcatBadgeEl.innerHTML = '<div class="import-summary-bar" style="margin-bottom:16px;">' +
+                '<div><i class="fas fa-filter"></i> Showing only <strong>' + badgeSub + '</strong> (' + badgeCat + ') — <strong>' + filtered.length + '</strong> transaction' + (filtered.length === 1 ? '' : 's') + '</div>' +
+                '<button class="btn btn-secondary" onclick="clearExpenseSubcatFilter()"><i class="fas fa-xmark"></i> Clear</button>' +
+            '</div>';
+        } else {
+            subcatBadgeEl.innerHTML = '';
+        }
+    }
+
+    // Populate filters
     const yearSelect = document.getElementById('expenseFilterYear');
     if (yearSelect) {
         const years = [...new Set(state.transactions.filter(t => t.type === 'Expense').map(t => parseDate(t.date).getFullYear()))].sort();
@@ -3345,6 +3480,289 @@ function exportTransactionsToExcel() {
     XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
     XLSX.writeFile(wb, 'transactions_export_' + new Date().toISOString().split('T')[0] + '.xlsx');
     showToast('Transactions exported to Excel!', 'success');
+}
+
+/* ===================== GOOGLE PAY STATEMENT IMPORT ===================== */
+
+const GPAY_MONTHS = { Jan:'01', Feb:'02', Mar:'03', Apr:'04', May:'05', Jun:'06', Jul:'07', Aug:'08', Sep:'09', Oct:'10', Nov:'11', Dec:'12' };
+
+// Keyword -> category/classification heuristics for auto-categorizing GPay merchants.
+// This is a best-effort guess only; the user reviews/edits every row before import.
+const GPAY_CATEGORY_RULES = [
+    { keywords: ['foodbook', 'chicken', 'tea factory', 'compass india food', 'my chicken'], category: 'Restaurants', classification: 'Want' },
+    { keywords: ['pharmacy', 'pathlabs', 'medical', 'lal path'], category: 'Medical', classification: 'Need' },
+    { keywords: ['fuel station', 'petrol', 'hp petrol', 'bpcl', 'iocl', 'indian oil'], category: 'Fuel', classification: 'Need' },
+    { keywords: ['bescom', 'electricity', 'bses', 'power', 'kseb', 'discom'], category: 'Electricity', classification: 'Need' },
+    { keywords: ['airtel', 'vi prepaid', 'vodafone', 'jio', 'bsnl'], category: 'Mobile Recharge', classification: 'Need' },
+    { keywords: ['zee5', 'apple media services', 'netflix', 'hotstar', 'prime video', 'spotify', 'sony liv'], category: 'Streaming Services', classification: 'Want' },
+    { keywords: ['bookmyshow', 'cinemas', 'pvr', 'inox'], category: 'Entertainment', classification: 'Want' },
+    { keywords: ['market', 'farm fresh', 'grocery', 'grocer', 'supermarket', 'big basket', 'dmart', 'carrefood'], category: 'Groceries', classification: 'Need' },
+    { keywords: ['insurance'], category: 'Insurance', classification: 'Need' },
+    { keywords: ['apple india', 'apple store'], category: 'Shopping', classification: 'Want' }
+];
+
+function guessGpayCategory(party, direction) {
+    if (direction === 'Received') return { category: 'Other Income', classification: 'Income' };
+    const p = (party || '').toLowerCase();
+    for (const rule of GPAY_CATEGORY_RULES) {
+        if (rule.keywords.some(k => p.includes(k))) return { category: rule.category, classification: rule.classification };
+    }
+    return { category: 'Miscellaneous', classification: 'Want' };
+}
+
+function convertGpayDate(raw) {
+    const m = raw.match(/(\d{1,2})\s+([A-Za-z]{3}),?\s+(\d{4})/);
+    if (!m) return '';
+    const day = m[1].padStart(2, '0');
+    const mon = GPAY_MONTHS[m[2]] || '01';
+    return m[3] + '-' + mon + '-' + day;
+}
+
+// Extracts text from a PDF using pdf.js, reconstructing each page as rows
+// ordered top-to-bottom / left-to-right using item coordinates. This keeps a
+// statement row (date | description | amount) together as one line of text.
+async function extractPdfRows(arrayBuffer) {
+    if (typeof pdfjsLib === 'undefined') throw new Error('PDF library failed to load');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const items = content.items
+            .map(it => ({ str: it.str, x: it.transform[4], y: Math.round(it.transform[5]) }))
+            .filter(it => it.str.trim().length > 0);
+        items.sort((a, b) => (b.y - a.y) || (a.x - b.x));
+        const rows = [];
+        let currentY = null, currentRow = [];
+        const TOL = 3;
+        items.forEach(it => {
+            if (currentY === null || Math.abs(it.y - currentY) > TOL) {
+                if (currentRow.length) rows.push(currentRow);
+                currentRow = [it];
+                currentY = it.y;
+            } else {
+                currentRow.push(it);
+            }
+        });
+        if (currentRow.length) rows.push(currentRow);
+        rows.forEach(row => {
+            row.sort((a, b) => a.x - b.x);
+            fullText += row.map(r => r.str).join(' ') + '\n';
+        });
+    }
+    return fullText;
+}
+
+// Matches each transaction row as a single contiguous pattern:
+//   <date> <Paid to|Received from> <party> [₹amount]
+//   <time> UPI Transaction ID: <id>
+//   <Paid by|Paid to> <bank>
+// Matching the whole row in one regex (rather than anchoring on the UPI ID and
+// guessing at a surrounding text window) avoids two bugs that previously caused
+// almost every row to be dropped or mis-parsed:
+//   1) The amount often sits on the SAME reconstructed line as the party name
+//      (no newline between them), which broke the old party-name regex.
+//   2) Searching a wide window around the UPI ID could accidentally match the
+//      "Paid to <bank>" line from a neighboring transaction instead of the
+//      correct one.
+function parseGpayStatement(text) {
+    const rowRegex = /(\d{1,2}\s+[A-Za-z]{3},?\s+\d{4})\s+(Paid to|Received from)\s+([^\n₹]+?)\s*(?:₹\s*([\d,]+\.?\d*))?\s*\n\s*(\d{1,2}:\d{2}\s*[AP]M)\s+UPI Transaction ID:\s*(\d+)\s*\n\s*(?:Paid by|Paid to)\s+([^\n₹]+)/g;
+    const matches = [...text.matchAll(rowRegex)];
+    const results = [];
+    matches.forEach(m => {
+        const [, rawDate, directionRaw, rawParty, rawAmount, time, upiId, rawBank] = m;
+
+        const direction = /^Received/.test(directionRaw) ? 'Received' : 'Paid';
+        const party = rawParty.trim();
+        const bank = rawBank ? rawBank.trim() : '';
+        const amount = rawAmount ? parseFloat(rawAmount.replace(/,/g, '')) : NaN;
+        const date = convertGpayDate(rawDate);
+        if (!date || !party || isNaN(amount)) return;
+
+        results.push({ date, time: time || '', direction, party, bank, amount, upiId });
+    });
+    return results;
+}
+
+let pendingGpayImport = [];
+
+async function handleGpayFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    event.target.value = '';
+    showToast('Reading statement...', 'info');
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const text = await extractPdfRows(arrayBuffer);
+        const parsed = parseGpayStatement(text);
+        if (parsed.length === 0) {
+            showToast('Could not find any transactions in this PDF', 'error');
+            return;
+        }
+        const existingIds = new Set(state.transactions.map(t => t.notes || '').filter(Boolean));
+        pendingGpayImport = parsed.map((p, i) => {
+            const guess = guessGpayCategory(p.party, p.direction);
+            const duplicate = existingIds.has('UPI: ' + p.upiId);
+            const type = p.direction === 'Received' ? 'Income' : 'Expense';
+            return {
+                _rowId: 'imp_' + i,
+                selected: !duplicate,
+                duplicate,
+                date: p.date,
+                party: p.party,
+                bank: p.bank,
+                amount: p.amount,
+                upiId: p.upiId,
+                type,
+                category: guess.category,
+                subcategory: firstSubcategoryFor(type, guess.category),
+                classification: guess.classification
+            };
+        });
+        openImportModal();
+    } catch (err) {
+        console.error(err);
+        showToast('Error reading PDF: ' + err.message, 'error');
+    }
+}
+
+function openImportModal() {
+    renderImportReview();
+    document.getElementById('importModal').classList.add('active');
+}
+
+function closeImportModal() {
+    document.getElementById('importModal').classList.remove('active');
+    pendingGpayImport = [];
+}
+
+function importCategoryOptions(type, selected) {
+    const names = (state.categoryConfig || DEFAULT_CATEGORY_CONFIG)
+        .filter(c => c.type === type)
+        .map(c => c.name);
+    if (selected && !names.includes(selected)) names.push(selected);
+    return names.map(n => '<option value="' + n + '" ' + (n === selected ? 'selected' : '') + '>' + n + '</option>').join('');
+}
+
+function importSubcategoryOptions(type, category, selected) {
+    const cfg = (state.categoryConfig || DEFAULT_CATEGORY_CONFIG).find(c => c.type === type && c.name === category);
+    const subs = cfg ? [...cfg.subcategories] : [];
+    if (selected && !subs.includes(selected)) subs.push(selected);
+    if (subs.length === 0) return '<option value="">-</option>';
+    return subs.map(s => '<option value="' + s + '" ' + (s === selected ? 'selected' : '') + '>' + s + '</option>').join('');
+}
+
+function firstSubcategoryFor(type, category) {
+    const cfg = (state.categoryConfig || DEFAULT_CATEGORY_CONFIG).find(c => c.type === type && c.name === category);
+    return cfg && cfg.subcategories.length ? cfg.subcategories[0] : '';
+}
+
+function partyGroupCounts() {
+    const counts = {};
+    pendingGpayImport.forEach(r => {
+        const key = (r.party || '').trim().toLowerCase();
+        counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
+}
+
+function renderImportReview() {
+    const dupCount = pendingGpayImport.filter(r => r.duplicate).length;
+    const total = pendingGpayImport.length;
+    document.getElementById('importSummaryBar').innerHTML =
+        '<div><strong>' + total + '</strong> transactions found' + (dupCount ? (', <strong style="color:var(--warning);">' + dupCount + '</strong> look already imported and are unchecked') : '') + '.</div>' +
+        '<div style="font-size:0.8rem; color:var(--text-muted);">Review category &amp; type below, uncheck any rows you don\'t want, then import. Rows with the same payee show an <i class="fas fa-clone"></i> button to copy one row\'s category/subcategory to all matching rows at once.</div>';
+
+    const counts = partyGroupCounts();
+    const tbody = document.getElementById('importReviewTable');
+    tbody.innerHTML = pendingGpayImport.map(r => {
+        const groupCount = counts[(r.party || '').trim().toLowerCase()] || 1;
+        return '<tr class="import-row"' + (r.duplicate ? ' style="opacity:0.55;"' : '') + '>' +
+            '<td><input type="checkbox" ' + (r.selected ? 'checked' : '') + ' onchange="updateImportField(\'' + r._rowId + '\', \'selected\', this.checked)"></td>' +
+            '<td style="white-space:nowrap;">' + r.date + '</td>' +
+            '<td>' + r.party + (r.duplicate ? ' <span class="badge badge-warning">already imported?</span>' : '') + '<div style="font-size:0.72rem; color:var(--text-muted);">' + (r.bank || '') + '</div></td>' +
+            '<td style="white-space:nowrap; font-weight:600;">' + fmt(r.amount) + '</td>' +
+            '<td><select onchange="updateImportField(\'' + r._rowId + '\', \'type\', this.value)">' +
+                '<option value="Expense" ' + (r.type === 'Expense' ? 'selected' : '') + '>Expense</option>' +
+                '<option value="Income" ' + (r.type === 'Income' ? 'selected' : '') + '>Income</option>' +
+            '</select></td>' +
+            '<td><select onchange="updateImportField(\'' + r._rowId + '\', \'category\', this.value)">' + importCategoryOptions(r.type, r.category) + '</select></td>' +
+            '<td><select onchange="updateImportField(\'' + r._rowId + '\', \'subcategory\', this.value)">' + importSubcategoryOptions(r.type, r.category, r.subcategory) + '</select></td>' +
+            '<td><select onchange="updateImportField(\'' + r._rowId + '\', \'classification\', this.value)">' +
+                ['Need', 'Want', 'Investment', 'Emergency', 'Income'].map(c => '<option value="' + c + '" ' + (c === r.classification ? 'selected' : '') + '>' + c + '</option>').join('') +
+            '</select></td>' +
+            '<td>' + (groupCount > 1 ?
+                '<button class="action-btn edit" title="Apply this category/subcategory/classification to all ' + groupCount + ' rows paid to \'' + r.party.replace(/'/g, "&#39;") + '\'" onclick="applyToSimilarParty(\'' + r._rowId + '\')"><i class="fas fa-clone"></i></button>'
+                : '') + '</td>' +
+        '</tr>';
+    }).join('');
+}
+
+function applyToSimilarParty(rowId) {
+    const source = pendingGpayImport.find(r => r._rowId === rowId);
+    if (!source) return;
+    const key = (source.party || '').trim().toLowerCase();
+    let count = 0;
+    pendingGpayImport.forEach(r => {
+        if ((r.party || '').trim().toLowerCase() === key) {
+            r.type = source.type;
+            r.category = source.category;
+            r.subcategory = source.subcategory;
+            r.classification = source.classification;
+            count++;
+        }
+    });
+    renderImportReview();
+    showToast('Applied category to ' + count + ' transaction(s) paid to "' + source.party + '"', 'success');
+}
+
+function updateImportField(rowId, field, value) {
+    const row = pendingGpayImport.find(r => r._rowId === rowId);
+    if (!row) return;
+    row[field] = value;
+    if (field === 'type') {
+        // Reset category to a sensible default for the new type, since Income/Expense category lists differ.
+        row.category = value === 'Income' ? 'Other Income' : 'Miscellaneous';
+        row.classification = value === 'Income' ? 'Income' : 'Want';
+        row.subcategory = firstSubcategoryFor(row.type, row.category);
+        renderImportReview();
+    } else if (field === 'category') {
+        // Subcategory options depend on the chosen category, so pick a sensible default.
+        row.subcategory = firstSubcategoryFor(row.type, row.category);
+        renderImportReview();
+    }
+}
+
+function toggleAllImportRows(checked) {
+    pendingGpayImport.forEach(r => { r.selected = checked; });
+    renderImportReview();
+}
+
+function confirmGpayImport() {
+    const selected = pendingGpayImport.filter(r => r.selected);
+    if (selected.length === 0) { showToast('No transactions selected', 'error'); return; }
+    let nextNum = state.transactions.length + 1;
+    selected.forEach(r => {
+        const id = 'TXN' + String(nextNum++).padStart(5, '0');
+        state.transactions.push({
+            id,
+            date: r.date,
+            type: r.type,
+            category: r.category,
+            subcategory: r.subcategory || '',
+            classification: r.classification,
+            amount: r.amount,
+            payment: 'UPI',
+            bank: r.bank || 'Google Pay',
+            member: 'Self',
+            vendor: r.party,
+            notes: 'UPI: ' + r.upiId
+        });
+    });
+    saveState(); renderAll();
+    closeImportModal();
+    showToast(selected.length + ' transactions imported from Google Pay!', 'success');
 }
 
 function importData(event) {
