@@ -1174,7 +1174,10 @@ async function apiCall(action, payload) {
     const res = await fetch(CONFIG.GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        // keepalive lets this request finish sending even if the tab is refreshed/closed
+        // right after an edit, instead of the browser cancelling it mid-flight.
+        keepalive: true
     });
     return await res.json();
 }
@@ -1201,20 +1204,38 @@ async function loadDataFromSheets() {
     }
 }
 
+let pendingSyncCount = 0;
+
 async function saveDataToSheets() {
     if (!CONFIG.GAS_URL) return;
+    pendingSyncCount++;
     setSyncStatus('syncing', 'Syncing to Sheets...');
     try {
         const result = await apiCall('save', { state });
         if (result.status === 'ok') {
             setSyncStatus('synced', 'Connected to Sheets');
         } else {
+            console.error('Sheets save returned an error:', result.message || result);
             setSyncStatus('error', 'Sync failed');
+            showToast('Could not save to Google Sheets: ' + (result.message || 'unknown error'), 'error');
         }
     } catch (e) {
-        setSyncStatus('offline', 'Offline - changes queued');
+        console.error('Sheets save failed:', e);
+        setSyncStatus('offline', 'Offline - changes NOT saved to Sheets');
+        showToast('Could not reach Google Sheets - this change is only saved locally on this device.', 'error');
+    } finally {
+        pendingSyncCount = Math.max(0, pendingSyncCount - 1);
     }
 }
+
+// Warn before leaving/refreshing if a save to Sheets hasn't finished yet, so an edit
+// made just before closing the tab doesn't silently get lost.
+window.addEventListener('beforeunload', (e) => {
+    if (pendingSyncCount > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
 
 async function syncNow() {
     await saveDataToSheets();
@@ -2496,12 +2517,14 @@ function deleteLoan(id) {
 function updateCategoryPct(id, pct) {
     const cat = state.categories.find(c => c.id === id);
     if (cat) cat.targetPct = parseFloat(pct) || 0;
+    saveState();
     renderBudgetConfig();
 }
 
 function updateCategoryPriority(id, priority) {
     const cat = state.categories.find(c => c.id === id);
     if (cat) cat.priority = priority;
+    saveState();
     renderBudgetConfig();
 }
 
