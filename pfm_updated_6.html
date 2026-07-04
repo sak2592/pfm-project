@@ -457,7 +457,7 @@
                         <div class="card-label">Savings</div>
                         <div class="card-value" id="expenseSavingsTotal">Rs.0</div>
                         <div class="card-change" id="expenseSavingsPct">0% of income</div>
-                        <div class="card-sub" id="expenseSavingsSub">Income - Total Expenses</div>
+                        <div class="card-sub" id="expenseSavingsSub">Income - Total Expenses - Investment</div>
                     </div>
                     <div class="dash-card loan" id="expenseLoanCard" style="cursor:pointer;" onclick="toggleExpenseLoanFilter()" title="Click to view this month's loan transactions in Expense History below">
                         <div class="card-icon"><i class="fas fa-landmark"></i></div>
@@ -3019,11 +3019,13 @@ function renderExpense() {
     el('expenseTotalPct', totalExpensePct.toFixed(1) + '% of income');
     el('expenseTotalSub', 'All categories (Fixed + one-off + Loan EMIs), incl. ' + fmt(totalLoanPaid) + ' loan');
 
-    // Savings = that month's Income minus Total Expenses (the same combined figure shown above).
-    const savingsTotal = fixedScopeIncome - allCatTotal;
+    // Savings = that month's Income minus Total Expenses (combined, incl. loan) minus Investments.
+    const savingsScopeInvestment = getTotalInvestment(fixedScopeMonth);
+    const savingsTotal = fixedScopeIncome - allCatTotal - savingsScopeInvestment;
     const savingsPct = fixedScopeIncome > 0 ? (savingsTotal / fixedScopeIncome) * 100 : 0;
     el('expenseSavingsTotal', fmt(savingsTotal));
     el('expenseSavingsPct', savingsPct.toFixed(1) + '% of income');
+    el('expenseSavingsSub', 'Income - Total Expenses - Investment');
     const savingsValueEl = document.getElementById('expenseSavingsTotal');
     if (savingsValueEl) savingsValueEl.style.color = savingsTotal < 0 ? 'var(--danger)' : '';
 
