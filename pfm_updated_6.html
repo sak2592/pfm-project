@@ -389,8 +389,11 @@
                 </div>
 
                 <div id="dbOverviewSection-monthly">
-                    <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
-                        <select id="dbMonthlyOverviewSelect" class="config-input" onchange="renderDashboardMonthlyOverview()" style="width: auto; min-width: 180px;">
+                    <div style="display:flex; justify-content:flex-end; gap:12px; margin-bottom:16px;">
+                        <select id="dbMonthlyOverviewYearSelect" class="config-input" onchange="onDbMonthlyOverviewYearChange()" style="width: auto; min-width: 120px;">
+                            <option value="">Year</option>
+                        </select>
+                        <select id="dbMonthlyOverviewSelect" class="config-input" onchange="renderDashboardMonthlyOverview()" style="width: auto; min-width: 150px;">
                             <option value="">Select Month</option>
                         </select>
                     </div>
@@ -432,27 +435,9 @@
                 <div class="dashboard-grid" style="margin-bottom: 20px;">
                     <div class="dash-card emi">
                         <div class="card-icon"><i class="fas fa-hand-holding-dollar"></i></div>
-                        <div class="card-label">Total Expenses</div>
+                        <div class="card-label" id="expenseTotalLabel">Total Expenses</div>
                         <div class="card-value" id="expenseTotal">Rs.0</div>
-                        <div class="card-sub">All time</div>
-                    </div>
-                    <div class="dash-card loan">
-                        <div class="card-icon"><i class="fas fa-calendar-check"></i></div>
-                        <div class="card-label">This Year</div>
-                        <div class="card-value" id="expenseYear">Rs.0</div>
-                        <div class="card-sub" id="expenseYearSub">2024</div>
-                    </div>
-                    <div class="dash-card health">
-                        <div class="card-icon"><i class="fas fa-calendar-day"></i></div>
-                        <div class="card-label">This Month</div>
-                        <div class="card-value" id="expenseMonth">Rs.0</div>
-                        <div class="card-sub" id="expenseMonthSub">Current</div>
-                    </div>
-                    <div class="dash-card budget">
-                        <div class="card-icon"><i class="fas fa-chart-pie"></i></div>
-                        <div class="card-label">Avg Monthly</div>
-                        <div class="card-value" id="expenseAvg">Rs.0</div>
-                        <div class="card-sub">Based on history</div>
+                        <div class="card-sub" id="expenseTotalSub">All categories</div>
                     </div>
                     <div class="dash-card savings">
                         <div class="card-icon"><i class="fas fa-arrows-rotate"></i></div>
@@ -462,6 +447,12 @@
                         <div class="card-sub" id="expenseFixedSub">0 fixed items</div>
                     </div>
                 </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-chart-pie"></i> Category-wise Breakdown</div>
+                </div>
+                <div class="dashboard-grid" id="expenseCategoryBreakdown"></div>
             </div>
             <div class="panel">
                 <div class="panel-header">
@@ -475,6 +466,16 @@
                     </table>
                 </div>
             </div>
+            <div class="chart-grid">
+                <div class="panel">
+                    <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-area"></i> Expense Trend</div></div>
+                    <div class="chart-container"><canvas id="expenseTrendChart"></canvas></div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-pie"></i> Expense by Category</div></div>
+                    <div class="chart-container"><canvas id="expenseCategoryChart"></canvas></div>
+                </div>
+            </div>
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title"><i class="fas fa-list"></i> Expense History</div>
@@ -484,16 +485,6 @@
                         <thead><tr><th>ID</th><th>Date</th><th>Category</th><th>Subcategory</th><th>Amount</th><th>% of Salary</th><th>Payment</th><th>Vendor</th><th>Actions</th></tr></thead>
                         <tbody id="expenseTable"></tbody>
                     </table>
-                </div>
-            </div>
-            <div class="chart-grid">
-                <div class="panel">
-                    <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-area"></i> Expense Trend</div></div>
-                    <div class="chart-container"><canvas id="expenseTrendChart"></canvas></div>
-                </div>
-                <div class="panel">
-                    <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-pie"></i> Expense by Category</div></div>
-                    <div class="chart-container"><canvas id="expenseCategoryChart"></canvas></div>
                 </div>
             </div>
         </div>
@@ -511,23 +502,17 @@
                     <div class="form-group" style="margin:0;"><label>Month</label><select id="investmentFilterMonth" class="config-input" onchange="renderInvestment()"><option value="">All Months</option></select></div>
                 </div>
                 <div class="dashboard-grid" style="margin-bottom: 20px;">
+                    <div class="dash-card networth">
+                        <div class="card-icon"><i class="fas fa-vault"></i></div>
+                        <div class="card-label">All Time Investment</div>
+                        <div class="card-value" id="investmentAllTime">Rs.0</div>
+                        <div class="card-sub">Lifetime, all categories</div>
+                    </div>
                     <div class="dash-card budget">
                         <div class="card-icon"><i class="fas fa-chart-line"></i></div>
-                        <div class="card-label">Total Invested</div>
+                        <div class="card-label" id="investmentTotalLabel">Total Invested</div>
                         <div class="card-value" id="investmentTotal">Rs.0</div>
-                        <div class="card-sub">All time</div>
-                    </div>
-                    <div class="dash-card savings">
-                        <div class="card-icon"><i class="fas fa-calendar-check"></i></div>
-                        <div class="card-label">This Year</div>
-                        <div class="card-value" id="investmentYear">Rs.0</div>
-                        <div class="card-sub" id="investmentYearSub">2024</div>
-                    </div>
-                    <div class="dash-card networth">
-                        <div class="card-icon"><i class="fas fa-calendar-day"></i></div>
-                        <div class="card-label">This Month</div>
-                        <div class="card-value" id="investmentMonth">Rs.0</div>
-                        <div class="card-sub" id="investmentMonthSub">Current</div>
+                        <div class="card-sub" id="investmentTotalSub">All categories</div>
                     </div>
                     <div class="dash-card health">
                         <div class="card-icon"><i class="fas fa-percentage"></i></div>
@@ -546,6 +531,12 @@
             </div>
             <div class="panel">
                 <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-chart-pie"></i> Category-wise Breakdown</div>
+                </div>
+                <div class="dashboard-grid" id="investmentCategoryBreakdown"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
                     <div class="panel-title"><i class="fas fa-arrows-rotate"></i> Fixed Investments / SIPs <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(recurring, with optional annual step-up)</span></div>
                     <button class="btn btn-primary" onclick="openRecurringModal('Investment')"><i class="fas fa-plus"></i> Add Fixed Investment</button>
                 </div>
@@ -553,17 +544,6 @@
                     <table>
                         <thead><tr><th>Category</th><th>Amount</th><th>Step-up</th><th>Frequency</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody id="recurringInvestmentTable"></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title"><i class="fas fa-list"></i> Investment History</div>
-                </div>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>ID</th><th>Date</th><th>Category</th><th>Subcategory</th><th>Amount</th><th>% of Salary</th><th>Payment</th><th>Vendor</th><th>Actions</th></tr></thead>
-                        <tbody id="investmentTable"></tbody>
                     </table>
                 </div>
             </div>
@@ -575,6 +555,17 @@
                 <div class="panel">
                     <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-pie"></i> Investment by Category</div></div>
                     <div class="chart-container"><canvas id="investmentCategoryChart"></canvas></div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-list"></i> Investment History</div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>ID</th><th>Date</th><th>Category</th><th>Subcategory</th><th>Amount</th><th>% of Salary</th><th>Payment</th><th>Vendor</th><th>Actions</th></tr></thead>
+                        <tbody id="investmentTable"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -789,11 +780,8 @@
                     <div class="panel-title"><i class="fas fa-box-archive"></i> Inactive / Completed Loans (<span id="completedLoanCount">0</span>)</div>
                     <button class="btn btn-secondary" type="button" id="completedLoanToggleBtn" onclick="event.stopPropagation(); toggleCompletedLoans();"><i class="fas fa-chevron-down"></i> Show</button>
                 </div>
-                <div class="table-container" id="completedLoanSection" style="display:none;">
-                    <table>
-                        <thead><tr><th>Loan</th><th>Lender</th><th>Original</th><th>Outstanding</th><th>Rate</th><th>EMI</th><th>Tenure</th><th>Remaining</th><th>% Paid</th><th>Status</th><th>Actions</th></tr></thead>
-                        <tbody id="loanTableCompleted"></tbody>
-                    </table>
+                <div id="completedLoanSection" style="display:none;">
+                    <div id="completedLoanCards"></div>
                 </div>
             </div>
             <div class="panel">
@@ -1034,6 +1022,8 @@ let state = {
 };
 let charts = {};
 let editingId = null;
+let expenseFiltersInitialized = false;
+let investmentFiltersInitialized = false;
 let editingType = null;
 let currentTab = 'overview';
 let currentAdminSection = 'category';
@@ -1541,6 +1531,15 @@ function loanRowHtml(item, today) {
     return '<tr><td><strong>' + item.name + '</strong></td><td>' + item.lender + '</td><td>' + fmt(item.principal) + '</td><td>' + fmt(item.outstanding) + '</td><td>' + item.rate + '%</td><td>' + fmt(item.emi) + '</td><td>' + item.tenure + ' mo</td><td>' + monthsRemaining + ' mo</td><td>' + pctPaid.toFixed(1) + '%</td><td><span class="badge ' + (pctPaid >= 100 ? 'badge-success' : 'badge-warning') + '">' + (pctPaid >= 100 ? 'Completed' : 'Active') + '</span></td><td><div class="action-btns"><button class="action-btn edit" onclick="editLoan(\'' + item.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteLoan(\'' + item.id + '\')"><i class="fas fa-trash"></i></button></div></td></tr>';
 }
 
+function loanCardHtml(item, today) {
+    const start = parseDate(item.startDate);
+    const paid = item.principal - item.outstanding;
+    const pctPaid = item.principal > 0 ? Math.min(100, (paid / item.principal) * 100) : 100;
+    const monthsElapsed = Math.max(0, (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth()));
+    const closedAround = new Date(start.getFullYear(), start.getMonth() + item.tenure, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+    return '<div class="goal-card"><div class="goal-header"><div class="goal-title"><i class="fas fa-circle-check" style="color:var(--secondary);"></i> ' + item.name + '<span class="badge badge-success" style="margin-left:10px;">Completed</span></div><div style="display:flex; align-items:center; gap:14px;"><div style="font-size:1.2rem; font-weight:700; color:var(--secondary);">' + pctPaid.toFixed(0) + '%</div><div class="action-btns"><button class="action-btn edit" onclick="editLoan(\'' + item.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteLoan(\'' + item.id + '\')"><i class="fas fa-trash"></i></button></div></div></div><div style="color:var(--text-muted); font-size:0.9rem; margin-bottom:8px;">' + item.lender + ' · ' + item.rate + '% interest · ' + item.tenure + ' month tenure</div><div class="goal-progress"><div class="goal-progress-fill" style="width:' + pctPaid.toFixed(1) + '%; background:var(--secondary);"></div></div><div class="goal-stats"><div class="goal-stat"><div class="goal-stat-value">' + fmt(item.principal) + '</div><div class="goal-stat-label">Original Amount</div></div><div class="goal-stat"><div class="goal-stat-value">' + fmt(item.emi) + '</div><div class="goal-stat-label">EMI Paid</div></div><div class="goal-stat"><div class="goal-stat-value">' + closedAround + '</div><div class="goal-stat-label">Closed Around</div></div></div></div>';
+}
+
 function isLoanCompleted(item) {
     const paid = item.principal - item.outstanding;
     const pctPaid = item.principal > 0 ? (paid / item.principal) * 100 : 0;
@@ -1549,7 +1548,7 @@ function isLoanCompleted(item) {
 
 function renderLoans() {
     const tbody = document.getElementById('loanTable');
-    const completedTbody = document.getElementById('loanTableCompleted');
+    const completedCards = document.getElementById('completedLoanCards');
     const countEl = document.getElementById('completedLoanCount');
     if (!tbody) return;
     const today = new Date();
@@ -1563,11 +1562,11 @@ function renderLoans() {
     }
 
     if (countEl) countEl.textContent = completedLoans.length;
-    if (completedTbody) {
+    if (completedCards) {
         if (completedLoans.length === 0) {
-            completedTbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><i class="fas fa-box-archive"></i><p>No completed/inactive loans yet</p></div></td></tr>';
+            completedCards.innerHTML = '<div class="empty-state"><i class="fas fa-box-archive"></i><p>No completed/inactive loans yet</p></div>';
         } else {
-            completedTbody.innerHTML = completedLoans.map(item => loanRowHtml(item, today)).join('');
+            completedCards.innerHTML = completedLoans.map(item => loanCardHtml(item, today)).join('');
         }
     }
 }
@@ -2547,29 +2546,47 @@ function renderExpense() {
 
     const filterCat = document.getElementById('expenseFilterCategory')?.value || '';
     const filterYear = document.getElementById('expenseFilterYear')?.value || '';
-    const filterMonth = document.getElementById('expenseFilterMonth')?.value || '';
+    let filterMonth = document.getElementById('expenseFilterMonth')?.value || '';
+
+    // Default to the current month on first load only (so the tab doesn't open showing an all-time total)
+    if (!expenseFiltersInitialized) {
+        expenseFiltersInitialized = true;
+        if (!filterMonth && !filterYear) {
+            filterMonth = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+        }
+    }
+
+    // Always show all 12 months of the relevant year (selected year, or current year if none selected) —
+    // regardless of whether transactions exist for a given month yet
+    const monthsYear = filterYear ? parseInt(filterYear) : new Date().getFullYear();
+    const monthsInScope = Array.from({ length: 12 }, (_, m) => new Date(monthsYear, m, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }));
+
+    // If the previously selected month doesn't belong to the relevant year, clear it
+    if (filterMonth && !monthsInScope.includes(filterMonth)) {
+        filterMonth = '';
+        const monthSelectEl = document.getElementById('expenseFilterMonth');
+        if (monthSelectEl) monthSelectEl.value = '';
+    }
 
     let filtered = state.transactions.filter(t => t.type === 'Expense').sort((a, b) => parseDate(b.date) - parseDate(a.date));
     if (filterCat) filtered = filtered.filter(t => t.category === filterCat);
     if (filterYear) filtered = filtered.filter(t => parseDate(t.date).getFullYear().toString() === filterYear);
     if (filterMonth) filtered = filtered.filter(t => getMonthYear(t.date) === filterMonth);
 
-    // Update summary cards
-    const totalExp = state.transactions.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
-    const currentYear = new Date().getFullYear().toString();
-    const yearExp = state.transactions.filter(t => t.type === 'Expense' && parseDate(t.date).getFullYear().toString() === currentYear).reduce((s, t) => s + t.amount, 0);
-    const currentMonthStr = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-    const monthExp = state.transactions.filter(t => t.type === 'Expense' && getMonthYear(t.date) === currentMonthStr).reduce((s, t) => s + t.amount, 0);
-    const expMonths = [...new Set(state.transactions.filter(t => t.type === 'Expense').map(t => getMonthYear(t.date)))].length;
-    const avgMonthly = expMonths > 0 ? totalExp / expMonths : 0;
+    // Single dynamic total card — reflects whatever filters are active
+    const filteredTotal = filtered.reduce((s, t) => s + t.amount, 0);
+    let totalLabel = 'Total Expenses';
+    if (filterMonth) totalLabel = 'Expenses - ' + filterMonth;
+    else if (filterYear) totalLabel = 'Expenses - ' + filterYear;
+    else if (filterCat) totalLabel = 'Total Expenses';
+    const totalSub = filterCat ? filterCat : 'All categories';
 
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-    el('expenseTotal', fmt(totalExp));
-    el('expenseYear', fmt(yearExp));
-    el('expenseYearSub', currentYear);
-    el('expenseMonth', fmt(monthExp));
-    el('expenseMonthSub', currentMonthStr);
-    el('expenseAvg', fmt(avgMonthly));
+    el('expenseTotalLabel', totalLabel);
+    el('expenseTotal', fmt(filteredTotal));
+    el('expenseTotalSub', totalSub);
+
+    const currentMonthStr = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
     const fixedExpMonthTx = state.transactions.filter(t => t.type === 'Expense' && t.recurringId && getMonthYear(t.date) === currentMonthStr);
     const fixedExpMonthTotal = fixedExpMonthTx.reduce((s, t) => s + t.amount, 0);
     const fixedExpCount = (state.recurringItems || []).filter(r => r.type === 'Expense').length;
@@ -2591,6 +2608,31 @@ function renderExpense() {
         }).join('');
     }
 
+    // Category-wise breakdown as small colorful nodal cards — respects active filters
+    const breakdownGrid = document.getElementById('expenseCategoryBreakdown');
+    if (breakdownGrid) {
+        const catBreakdown = {};
+        filtered.forEach(t => { catBreakdown[t.category] = (catBreakdown[t.category] || 0) + t.amount; });
+        const catEntries = Object.entries(catBreakdown).sort((a, b) => b[1] - a[1]);
+        if (catEntries.length === 0) {
+            breakdownGrid.innerHTML = '<div class="empty-state"><i class="fas fa-chart-pie"></i><p>No expenses for the selected filter</p></div>';
+        } else {
+            const colorClasses = ['loan', 'emi', 'health', 'budget', 'networth', 'savings', 'salary'];
+            const iconMap = { 'Food': 'fa-utensils', 'Groceries': 'fa-cart-shopping', 'Rent': 'fa-house', 'Housing': 'fa-house',
+                'Transport': 'fa-car', 'Transportation': 'fa-car', 'Entertainment': 'fa-film', 'Shopping': 'fa-bag-shopping',
+                'Utilities': 'fa-bolt', 'Bills': 'fa-file-invoice-dollar', 'Health': 'fa-heart-pulse', 'Medical': 'fa-heart-pulse',
+                'Travel': 'fa-plane', 'Education': 'fa-graduation-cap', 'Insurance': 'fa-shield-halved',
+                'EMI': 'fa-hand-holding-dollar', 'Loan': 'fa-hand-holding-dollar', 'Investment': 'fa-chart-line',
+                'Subscription': 'fa-rotate', 'Personal Care': 'fa-spa', 'Gifts': 'fa-gift', 'Fuel': 'fa-gas-pump' };
+            breakdownGrid.innerHTML = catEntries.map(([cat, amt], idx) => {
+                const pct = filteredTotal > 0 ? (amt / filteredTotal) * 100 : 0;
+                const colorClass = colorClasses[idx % colorClasses.length];
+                const icon = iconMap[cat] || 'fa-tag';
+                return '<div class="dash-card ' + colorClass + '"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div></div>';
+            }).join('');
+        }
+    }
+
     // Populate filters
     const catSelect = document.getElementById('expenseFilterCategory');
     if (catSelect) {
@@ -2606,18 +2648,19 @@ function renderExpense() {
     }
     const monthSelect = document.getElementById('expenseFilterMonth');
     if (monthSelect) {
-        const months = [...new Set(state.transactions.filter(t => t.type === 'Expense').map(t => getMonthYear(t.date)))].sort();
-        monthSelect.innerHTML = '<option value="">All Months</option>' + months.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+        monthSelect.innerHTML = '<option value="">All Months</option>' + monthsInScope.map(m => '<option value="' + m + '">' + m + '</option>').join('');
         if (filterMonth) monthSelect.value = filterMonth;
     }
 
     renderRecurringExpense();
-    renderExpenseCharts();
+    renderExpenseCharts(filtered);
 }
 
-function renderExpenseCharts() {
+function renderExpenseCharts(filtered) {
+    if (!filtered) filtered = state.transactions.filter(t => t.type === 'Expense');
+
     const monthlyExp = {};
-    state.transactions.filter(t => t.type === 'Expense').forEach(t => {
+    filtered.forEach(t => {
         const my = getMonthYear(t.date);
         monthlyExp[my] = (monthlyExp[my] || 0) + t.amount;
     });
@@ -2628,7 +2671,7 @@ function renderExpenseCharts() {
     }, { plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { y: { ticks: { color: '#94a3b8', callback: v => 'Rs.' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#94a3b8' }, grid: { display: false } } } });
 
     const catData = {};
-    state.transactions.filter(t => t.type === 'Expense').forEach(t => {
+    filtered.forEach(t => {
         catData[t.category] = (catData[t.category] || 0) + t.amount;
     });
     const colors = ['#ef4444','#f59e0b','#8b5cf6','#ec4899','#3b82f6','#06b6d4','#10b981','#f97316'];
@@ -2644,29 +2687,52 @@ function renderInvestment() {
 
     const filterCat = document.getElementById('investmentFilterCategory')?.value || '';
     const filterYear = document.getElementById('investmentFilterYear')?.value || '';
-    const filterMonth = document.getElementById('investmentFilterMonth')?.value || '';
+    let filterMonth = document.getElementById('investmentFilterMonth')?.value || '';
+
+    // Default to the current month on first load only (so the tab doesn't open showing an all-time total)
+    if (!investmentFiltersInitialized) {
+        investmentFiltersInitialized = true;
+        if (!filterMonth && !filterYear) {
+            filterMonth = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+        }
+    }
+
+    // Always show all 12 months of the relevant year (selected year, or current year if none selected)
+    const monthsYear = filterYear ? parseInt(filterYear) : new Date().getFullYear();
+    const monthsInScope = Array.from({ length: 12 }, (_, m) => new Date(monthsYear, m, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }));
+
+    // If the previously selected month doesn't belong to the relevant year, clear it
+    if (filterMonth && !monthsInScope.includes(filterMonth)) {
+        filterMonth = '';
+        const monthSelectEl = document.getElementById('investmentFilterMonth');
+        if (monthSelectEl) monthSelectEl.value = '';
+    }
 
     let filtered = state.transactions.filter(t => t.type === 'Investment').sort((a, b) => parseDate(b.date) - parseDate(a.date));
     if (filterCat) filtered = filtered.filter(t => t.category === filterCat);
     if (filterYear) filtered = filtered.filter(t => parseDate(t.date).getFullYear().toString() === filterYear);
     if (filterMonth) filtered = filtered.filter(t => getMonthYear(t.date) === filterMonth);
 
-    // Update summary cards
-    const totalInv = state.transactions.filter(t => t.type === 'Investment').reduce((s, t) => s + t.amount, 0);
-    const currentYear = new Date().getFullYear().toString();
-    const yearInv = state.transactions.filter(t => t.type === 'Investment' && parseDate(t.date).getFullYear().toString() === currentYear).reduce((s, t) => s + t.amount, 0);
-    const currentMonthStr = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-    const monthInv = state.transactions.filter(t => t.type === 'Investment' && getMonthYear(t.date) === currentMonthStr).reduce((s, t) => s + t.amount, 0);
+    // Single dynamic total card — reflects whatever filters are active
+    const filteredTotal = filtered.reduce((s, t) => s + t.amount, 0);
+    let totalLabel = 'Total Invested';
+    if (filterMonth) totalLabel = 'Invested - ' + filterMonth;
+    else if (filterYear) totalLabel = 'Invested - ' + filterYear;
+    const totalSub = filterCat ? filterCat : 'All categories';
+
     const totalIncome = state.transactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0) || state.salary;
-    const investRate = totalIncome > 0 ? (totalInv / totalIncome) * 100 : 0;
+    const investRate = totalIncome > 0 ? (filteredTotal / totalIncome) * 100 : 0;
 
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-    el('investmentTotal', fmt(totalInv));
-    el('investmentYear', fmt(yearInv));
-    el('investmentYearSub', currentYear);
-    el('investmentMonth', fmt(monthInv));
-    el('investmentMonthSub', currentMonthStr);
+    el('investmentTotalLabel', totalLabel);
+    el('investmentTotal', fmt(filteredTotal));
+    el('investmentTotalSub', totalSub);
     el('investmentRate', investRate.toFixed(1) + '%');
+
+    const allTimeTotal = state.transactions.filter(t => t.type === 'Investment').reduce((s, t) => s + t.amount, 0);
+    el('investmentAllTime', fmt(allTimeTotal));
+
+    const currentMonthStr = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
     const fixedInvMonthTx = state.transactions.filter(t => t.type === 'Investment' && t.recurringId && getMonthYear(t.date) === currentMonthStr);
     const fixedInvMonthTotal = fixedInvMonthTx.reduce((s, t) => s + t.amount, 0);
     const fixedInvCount = (state.recurringItems || []).filter(r => r.type === 'Investment').length;
@@ -2688,6 +2754,29 @@ function renderInvestment() {
         }).join('');
     }
 
+    // Category-wise breakdown as small colorful nodal cards — respects active filters
+    const breakdownGrid = document.getElementById('investmentCategoryBreakdown');
+    if (breakdownGrid) {
+        const catBreakdown = {};
+        filtered.forEach(t => { catBreakdown[t.category] = (catBreakdown[t.category] || 0) + t.amount; });
+        const catEntries = Object.entries(catBreakdown).sort((a, b) => b[1] - a[1]);
+        if (catEntries.length === 0) {
+            breakdownGrid.innerHTML = '<div class="empty-state"><i class="fas fa-chart-pie"></i><p>No investments for the selected filter</p></div>';
+        } else {
+            const colorClasses = ['budget', 'savings', 'networth', 'health', 'emi', 'salary', 'loan'];
+            const iconMap = { 'Mutual Fund': 'fa-chart-line', 'Mutual Funds': 'fa-chart-line', 'SIP': 'fa-rotate', 'Stocks': 'fa-chart-simple',
+                'Equity': 'fa-chart-simple', 'FD': 'fa-building-columns', 'Fixed Deposit': 'fa-building-columns', 'PPF': 'fa-piggy-bank',
+                'Gold': 'fa-coins', 'Bonds': 'fa-file-contract', 'Crypto': 'fa-bitcoin-sign', 'NPS': 'fa-user-shield',
+                'Insurance': 'fa-shield-halved', 'Real Estate': 'fa-house-chimney', 'ELSS': 'fa-receipt' };
+            breakdownGrid.innerHTML = catEntries.map(([cat, amt], idx) => {
+                const pct = filteredTotal > 0 ? (amt / filteredTotal) * 100 : 0;
+                const colorClass = colorClasses[idx % colorClasses.length];
+                const icon = iconMap[cat] || 'fa-chart-pie';
+                return '<div class="dash-card ' + colorClass + '"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div></div>';
+            }).join('');
+        }
+    }
+
     // Populate filters
     const catSelect = document.getElementById('investmentFilterCategory');
     if (catSelect) {
@@ -2703,18 +2792,19 @@ function renderInvestment() {
     }
     const monthSelect = document.getElementById('investmentFilterMonth');
     if (monthSelect) {
-        const months = [...new Set(state.transactions.filter(t => t.type === 'Investment').map(t => getMonthYear(t.date)))].sort();
-        monthSelect.innerHTML = '<option value="">All Months</option>' + months.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+        monthSelect.innerHTML = '<option value="">All Months</option>' + monthsInScope.map(m => '<option value="' + m + '">' + m + '</option>').join('');
         if (filterMonth) monthSelect.value = filterMonth;
     }
 
     renderRecurringInvestment();
-    renderInvestmentCharts();
+    renderInvestmentCharts(filtered);
 }
 
-function renderInvestmentCharts() {
+function renderInvestmentCharts(filtered) {
+    if (!filtered) filtered = state.transactions.filter(t => t.type === 'Investment');
+
     const monthlyInv = {};
-    state.transactions.filter(t => t.type === 'Investment').forEach(t => {
+    filtered.forEach(t => {
         const my = getMonthYear(t.date);
         monthlyInv[my] = (monthlyInv[my] || 0) + t.amount;
     });
@@ -2725,7 +2815,7 @@ function renderInvestmentCharts() {
     }, { plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { y: { ticks: { color: '#94a3b8', callback: v => 'Rs.' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#94a3b8' }, grid: { display: false } } } });
 
     const catData = {};
-    state.transactions.filter(t => t.type === 'Investment').forEach(t => {
+    filtered.forEach(t => {
         catData[t.category] = (catData[t.category] || 0) + t.amount;
     });
     const colors = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
@@ -2782,13 +2872,13 @@ function renderMonthlyOverview(selectId, containerId) {
         '<div class="dash-card networth"><div class="card-icon"><i class="fas fa-gem"></i></div><div class="card-label">Net Cashflow</div><div class="card-value">' + fmt(monthSavings) + '</div><div class="card-sub">After all deductions</div></div>' +
         '</div>' +
         '<div class="panel" style="margin-top: 20px;"><div class="panel-header"><div class="panel-title"><i class="fas fa-chart-pie"></i> Expense Breakdown - ' + selectedMonth + '</div></div>' +
-        (topCategories.length > 0 ? 
-            '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 16px;">' +
+        (topCategories.length > 0 ?
+            '<div class="table-container"><table><thead><tr><th>Category</th><th>Amount</th><th>% of Total</th></tr></thead><tbody>' +
             topCategories.map(([cat, amt]) => {
                 const pct = monthExpenses > 0 ? (amt / monthExpenses) * 100 : 0;
-                return '<div class="analysis-card"><div class="analysis-header"><div class="analysis-name">' + cat + '</div><span class="status-badge ' + (pct > 30 ? 'status-red' : pct > 15 ? 'status-yellow' : 'status-green') + '">' + pct.toFixed(1) + '%</span></div><div class="analysis-metric"><span>Amount</span><span class="font-bold">' + fmt(amt) + '</span></div><div class="analysis-metric"><span>Of Total Expenses</span><span>' + pct.toFixed(1) + '%</span></div></div>';
+                return '<tr><td><strong>' + cat + '</strong></td><td>' + fmt(amt) + '</td><td>' + pct.toFixed(1) + '%</td></tr>';
             }).join('') +
-            '</div>' :
+            '</tbody></table></div>' :
             '<div class="empty-state"><i class="fas fa-chart-pie"></i><p>No expense data for this month</p></div>'
         ) +
         '</div>';
@@ -2946,10 +3036,13 @@ function populateOverviewSelectors() {
     }
 
     const dbMonthSelect = document.getElementById('dbMonthlyOverviewSelect');
-    if (dbMonthSelect) {
-        const prevVal = dbMonthSelect.value;
-        dbMonthSelect.innerHTML = '<option value="">Select Month</option>' + months.map(m => '<option value="' + m + '">' + m + '</option>').join('');
-        dbMonthSelect.value = (prevVal && months.includes(prevVal)) ? prevVal : (months[months.length - 1] || '');
+    const dbYearForMonthSelect = document.getElementById('dbMonthlyOverviewYearSelect');
+    if (dbYearForMonthSelect && dbMonthSelect) {
+        const prevYearVal = dbYearForMonthSelect.value;
+        dbYearForMonthSelect.innerHTML = years.map(y => '<option value="' + y + '">' + y + '</option>').join('');
+        const defaultYear = (prevYearVal && years.map(String).includes(prevYearVal)) ? prevYearVal : (years[years.length - 1] || new Date().getFullYear());
+        dbYearForMonthSelect.value = defaultYear;
+        populateDbMonthlyMonthOptions(defaultYear);
     }
     const dbYearSelect = document.getElementById('dbYearlyOverviewSelect');
     if (dbYearSelect) {
@@ -2957,6 +3050,27 @@ function populateOverviewSelectors() {
         dbYearSelect.innerHTML = '<option value="">Select Year</option>' + years.map(y => '<option value="' + y + '">' + y + '</option>').join('');
         dbYearSelect.value = (prevVal && years.map(String).includes(prevVal)) ? prevVal : (years[years.length - 1] || '');
     }
+}
+
+// Rebuild the Dashboard Monthly Overview's Month dropdown to only list the 12 months of the given year
+function populateDbMonthlyMonthOptions(year) {
+    const dbMonthSelect = document.getElementById('dbMonthlyOverviewSelect');
+    if (!dbMonthSelect) return;
+    const y = parseInt(year) || new Date().getFullYear();
+    const monthsInYear = Array.from({ length: 12 }, (_, m) => new Date(y, m, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }));
+    const prevVal = dbMonthSelect.value;
+    dbMonthSelect.innerHTML = '<option value="">Select Month</option>' + monthsInYear.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+    const currentMonthStr = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+    let defaultMonth = '';
+    if (prevVal && monthsInYear.includes(prevVal)) defaultMonth = prevVal;
+    else if (monthsInYear.includes(currentMonthStr)) defaultMonth = currentMonthStr;
+    dbMonthSelect.value = defaultMonth;
+}
+
+function onDbMonthlyOverviewYearChange() {
+    const yearSelect = document.getElementById('dbMonthlyOverviewYearSelect');
+    populateDbMonthlyMonthOptions(yearSelect ? yearSelect.value : '');
+    renderDashboardMonthlyOverview();
 }
 
 function exportToCSV() {
