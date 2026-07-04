@@ -433,16 +433,14 @@
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title"><i class="fas fa-hand-holding-dollar"></i> Expense Tracker</div>
-                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                        <select id="expenseFilterYear" class="config-input" onchange="onExpenseTopFilterChange()" style="width:auto; min-width:100px;"><option value="">All Years</option></select>
+                        <select id="expenseFilterMonth" class="config-input" onchange="onExpenseTopFilterChange()" style="width:auto; min-width:120px;"><option value="">All Months</option></select>
                         <input type="file" id="gpayFileInput" accept="application/pdf" style="display:none;" onchange="handleGpayFile(event)">
                         <button class="btn btn-secondary" onclick="document.getElementById('gpayFileInput').click()">
                             <i class="fas fa-file-pdf"></i> Import GPay Statement
                         </button>
                     </div>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
-                    <div class="form-group" style="margin:0;"><label>Year</label><select id="expenseFilterYear" class="config-input" onchange="onExpenseTopFilterChange()"><option value="">All Years</option></select></div>
-                    <div class="form-group" style="margin:0;"><label>Month</label><select id="expenseFilterMonth" class="config-input" onchange="onExpenseTopFilterChange()"><option value="">All Months</option></select></div>
                 </div>
                 <div class="dashboard-grid" style="margin-bottom: 20px;">
                     <div class="dash-card emi">
@@ -1751,11 +1749,15 @@ function regenerateLoanInstances(loanId) {
 
     const today = new Date();
     const start = parseDate(loan.startDate);
-    const paidMonths = Math.min(loanMonthsElapsed(loan, today), loan.tenure || 0);
-    if (paidMonths <= 0) return;
+    if (start > today) return;
 
+    // Walk forward one EMI at a time from the loan's start date, logging a transaction for every
+    // due date that has already passed - so an EMI due on the 1st shows up as soon as that date
+    // arrives, not only once the calendar month fully rolls over. Stops once the tenure is used up,
+    // which is also where the standard amortization schedule brings the outstanding balance to zero.
     let cursor = new Date(start);
-    for (let n = 0; n < paidMonths; n++) {
+    let n = 0;
+    while (cursor <= today && n < (loan.tenure || Infinity)) {
         state.transactions.push({
             id: loan.id + '_emi_' + fmtDateStr(cursor).replace(/-/g, ''),
             date: fmtDateStr(cursor),
@@ -1772,6 +1774,7 @@ function regenerateLoanInstances(loanId) {
             loanId: loan.id
         });
         cursor = advanceByFrequency(cursor, 'Monthly');
+        n++;
     }
 }
 
