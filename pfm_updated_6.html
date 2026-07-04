@@ -771,6 +771,12 @@
                     <div class="panel-title"><i class="fas fa-chart-pie"></i> Loan Overview</div>
                 </div>
                 <div class="dashboard-grid" style="margin-bottom:0;">
+                    <div class="dash-card loan">
+                        <div class="card-icon"><i class="fas fa-calendar-check"></i></div>
+                        <div class="card-label">Total Active EMI - Per Month</div>
+                        <div class="card-value" id="totalActiveEmiAmount">₹0</div>
+                        <div class="card-sub" id="totalActiveEmiCountSub">0 active loans</div>
+                    </div>
                     <div class="dash-card budget">
                         <div class="card-icon"><i class="fas fa-credit-card"></i></div>
                         <div class="card-label">Consumer Loans - Outstanding</div>
@@ -985,9 +991,9 @@ const DEFAULT_CATEGORY_CONFIG = [
 ];
 
 const DEFAULT_LOANS = [
-    { id: 'loan_1', name: 'Home Loan', lender: 'HDFC Bank', principal: 7500000, outstanding: 6260126, rate: 8.5, tenure: 240, emi: 65087, startDate: '2020-01-01', type: 'Mortgage' },
-    { id: 'loan_2', name: 'Laptop EMI', lender: 'Bajaj Finance', principal: 120000, outstanding: 45000, rate: 0, tenure: 15, emi: 8000, startDate: '2024-01-01', type: 'Consumer' },
-    { id: 'loan_3', name: 'Phone EMI', lender: 'HDFC Bank', principal: 80000, outstanding: 20000, rate: 0, tenure: 15, emi: 5333, startDate: '2024-06-01', type: 'Consumer' }
+    { id: 'loan_1', name: 'Home Loan', lender: 'HDFC Bank', principal: 7500000, outstanding: 6260126, rate: 8.5, tenure: 240, emi: 65087, startDate: '2020-01-01', type: 'Mortgage', autoOutstanding: true },
+    { id: 'loan_2', name: 'Laptop EMI', lender: 'Bajaj Finance', principal: 120000, outstanding: 45000, rate: 0, tenure: 15, emi: 8000, startDate: '2024-01-01', type: 'Consumer', autoOutstanding: true },
+    { id: 'loan_3', name: 'Phone EMI', lender: 'HDFC Bank', principal: 80000, outstanding: 20000, rate: 0, tenure: 15, emi: 5333, startDate: '2024-06-01', type: 'Consumer', autoOutstanding: true }
 ];
 
 const DEFAULT_GOALS = [
@@ -1296,6 +1302,27 @@ function loanRemainingPayable(item, today) {
     return item.emi * monthsRemaining;
 }
 
+// Auto-updates the `outstanding` balance for every loan that has autoOutstanding !== false,
+// using the standard amortization formula based on principal/rate/tenure/startDate vs today's date.
+// This is what makes "Outstanding" drop on its own each month instead of needing manual edits.
+// Loans with autoOutstanding === false keep whatever value was entered manually (e.g. if the
+// person prepaid extra and the bank's real balance no longer matches the plain EMI schedule).
+function syncAutoLoanOutstanding() {
+    if (!state.loans) return;
+    const today = new Date();
+    let changed = false;
+    state.loans.forEach(item => {
+        if (item.autoOutstanding === false) return;
+        const monthsElapsed = loanMonthsElapsed(item, today);
+        const computed = Math.round(calcOutstandingBalance(item.principal, item.rate, item.tenure, monthsElapsed));
+        if (item.outstanding !== computed) {
+            item.outstanding = computed;
+            changed = true;
+        }
+    });
+    if (changed) saveState();
+}
+
 function formatMonth(dateStr) {
     const d = parseDate(dateStr);
     return d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
@@ -1353,6 +1380,7 @@ function populateFilters() {
 }
 
 function renderAll() {
+    syncAutoLoanOutstanding();
     regenerateAllRecurring();
     renderDashboard();
     renderIncome();
@@ -1381,7 +1409,7 @@ function renderDashboard() {
         .filter(t => t.type === 'Expense' && getMonthYear(t.date) === currentMonth)
         .reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
     const totalInvestments = getTotalInvestment(currentMonth);
-    const totalEMI = state.loans.reduce((s, l) => s + (l.emi || 0), 0);
+    const totalEMI = getTotalActiveEMI();
     const netSavings = totalIncome - totalExpenses - totalInvestments;
     const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
 
@@ -1608,7 +1636,9 @@ function loanRowHtml(item, today) {
     const paid = item.principal - item.outstanding;
     const pctPaid = item.principal > 0 ? (paid / item.principal) * 100 : 0;
     const totalPayableLeft = item.emi * monthsRemaining;
-    return '<tr><td><strong>' + item.name + '</strong></td><td>' + item.lender + '</td><td>' + fmt(item.principal) + '</td><td>' + fmt(item.outstanding) + '</td><td>' + item.rate + '%</td><td>' + fmt(item.emi) + '</td><td>' + item.tenure + ' mo</td><td>' + monthsRemaining + ' mo</td><td>' + fmt(totalPayableLeft) + '</td><td>' + pctPaid.toFixed(1) + '%</td><td><span class="badge ' + (pctPaid >= 100 ? 'badge-success' : 'badge-warning') + '">' + (pctPaid >= 100 ? 'Completed' : 'Active') + '</span></td><td><div class="action-btns"><button class="action-btn edit" onclick="editLoan(\'' + item.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteLoan(\'' + item.id + '\')"><i class="fas fa-trash"></i></button></div></td></tr>';
+    const isAuto = item.autoOutstanding !== false;
+    const outstandingCell = fmt(item.outstanding) + ' <span style="font-size:0.7rem; color:var(--text-muted);" title="' + (isAuto ? 'Recalculated automatically each month' : 'Manually entered value') + '">' + (isAuto ? '<i class="fas fa-arrows-rotate"></i> auto' : '<i class="fas fa-pen"></i> manual') + '</span>';
+    return '<tr><td><strong>' + item.name + '</strong></td><td>' + item.lender + '</td><td>' + fmt(item.principal) + '</td><td>' + outstandingCell + '</td><td>' + item.rate + '%</td><td>' + fmt(item.emi) + '</td><td>' + item.tenure + ' mo</td><td>' + monthsRemaining + ' mo</td><td>' + fmt(totalPayableLeft) + '</td><td>' + pctPaid.toFixed(1) + '%</td><td><span class="badge ' + (pctPaid >= 100 ? 'badge-success' : 'badge-warning') + '">' + (pctPaid >= 100 ? 'Completed' : 'Active') + '</span></td><td><div class="action-btns"><button class="action-btn edit" onclick="editLoan(\'' + item.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteLoan(\'' + item.id + '\')"><i class="fas fa-trash"></i></button></div></td></tr>';
 }
 
 function completedLoanRowHtml(item) {
@@ -1620,6 +1650,12 @@ function isLoanCompleted(item) {
     const paid = item.principal - item.outstanding;
     const pctPaid = item.principal > 0 ? (paid / item.principal) * 100 : 0;
     return pctPaid >= 100 || item.outstanding <= 0;
+}
+
+// Single source of truth for "Total EMI" used by both the Dashboard card and the Loan page nodal -
+// only counts loans that are still active (excludes fully paid off / completed loans).
+function getTotalActiveEMI() {
+    return state.loans.filter(item => !isLoanCompleted(item)).reduce((s, l) => s + (l.emi || 0), 0);
 }
 
 function getInactiveLoanYear(item) {
@@ -1665,7 +1701,13 @@ function renderLoans() {
         }
     }
 
-    // Nodal summary cards: Consumer loans, separate Home/Personal/Car nodals (only if present), Other, Inactive loans
+    // Nodal summary cards: Total active EMI/month, Consumer loans, separate Home/Personal/Car nodals (only if present), Other, Inactive loans
+    const totalActiveEmi = activeLoans.reduce((s, l) => s + (l.emi || 0), 0);
+    const totalActiveEmiEl = document.getElementById('totalActiveEmiAmount');
+    if (totalActiveEmiEl) totalActiveEmiEl.textContent = fmt(totalActiveEmi);
+    const totalActiveEmiSubEl = document.getElementById('totalActiveEmiCountSub');
+    if (totalActiveEmiSubEl) totalActiveEmiSubEl.textContent = activeLoans.length + ' active loan' + (activeLoans.length !== 1 ? 's' : '');
+
     const consumerLoans = activeLoans.filter(l => l.type === 'Consumer');
     const consumerOutstanding = consumerLoans.reduce((s, l) => s + l.outstanding, 0);
     const inactiveTotalPrincipal = completedLoansAll.reduce((s, l) => s + l.principal, 0);
@@ -1884,7 +1926,7 @@ function renderInsights() {
         recs.push({ icon: 'fa-piggy-bank', title: 'Savings On Track', text: 'Great job! Saving ' + savingsRate.toFixed(1) + '% of income.', tag: 'Excellent', tagClass: 'good' });
     }
 
-    const totalEMI = state.loans.reduce((s, l) => s + l.emi, 0);
+    const totalEMI = getTotalActiveEMI();
     if (totalEMI > totalIncome * 0.5) {
         recs.push({ icon: 'fa-triangle-exclamation', title: 'High EMI Burden', text: 'Total EMI (' + fmt(totalEMI) + ') exceeds 50% of income. Consider prepayment.', tag: 'Critical', tagClass: 'danger' });
     }
@@ -2108,7 +2150,7 @@ function openModal(type, id) {
     } else if (type === 'loan') {
         const item = id ? state.loans.find(l => l.id === id) : null;
         title.textContent = id ? 'Edit Loan' : 'Add Loan';
-        content.innerHTML = '<div class="form-group"><label>Loan Name</label><input type="text" id="loanName" value="' + (item ? item.name : '') + '" placeholder="e.g., Home Loan"></div><div class="form-group"><label>Lender</label><input type="text" id="loanLender" value="' + (item ? item.lender : '') + '" placeholder="e.g., HDFC Bank"></div><div class="form-row"><div class="form-group"><label>Principal (Rs.)</label><input type="number" id="loanPrincipal" value="' + (item ? item.principal : '') + '"></div><div class="form-group"><label>Outstanding (Rs.)</label><input type="number" id="loanOutstanding" value="' + (item ? item.outstanding : '') + '"></div></div><div class="form-row"><div class="form-group"><label>Rate (%)</label><input type="number" step="0.01" id="loanRate" value="' + (item ? item.rate : '') + '"></div><div class="form-group"><label>EMI (Rs.)</label><input type="number" id="loanEMI" value="' + (item ? item.emi : '') + '"></div></div><div class="form-row"><div class="form-group"><label>Tenure (Months)</label><input type="number" id="loanTenure" value="' + (item ? item.tenure : '') + '"></div><div class="form-group"><label>Start Date</label><input type="date" id="loanStartDate" value="' + (item ? item.startDate : '') + '"></div></div><div class="form-group"><label>Type</label><select id="loanType"><option value="Mortgage">Mortgage</option><option value="Consumer">Consumer</option><option value="Personal">Personal</option><option value="Education">Education</option><option value="Car">Car</option></select></div><button class="btn btn-primary" style="width: 100%;" onclick="saveLoan()">' + (id ? 'Update' : 'Add') + ' Loan</button>';
+        content.innerHTML = '<div class="form-group"><label>Loan Name</label><input type="text" id="loanName" value="' + (item ? item.name : '') + '" placeholder="e.g., Home Loan"></div><div class="form-group"><label>Lender</label><input type="text" id="loanLender" value="' + (item ? item.lender : '') + '" placeholder="e.g., HDFC Bank"></div><div class="form-row"><div class="form-group"><label>Principal (Rs.)</label><input type="number" id="loanPrincipal" value="' + (item ? item.principal : '') + '"></div><div class="form-group"><label>Outstanding (Rs.)</label><input type="number" id="loanOutstanding" value="' + (item ? item.outstanding : '') + '" ' + (!item || item.autoOutstanding !== false ? 'disabled' : '') + '></div></div><div class="form-group"><label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text);"><input type="checkbox" id="loanAutoOutstanding" onchange="document.getElementById(\'loanOutstanding\').disabled = this.checked;" ' + (!item || item.autoOutstanding !== false ? 'checked' : '') + ' style="width:auto;"> Auto-calculate outstanding balance each month</label><div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Recommended: reduces automatically based on principal, rate, tenure &amp; start date - no manual updates needed. Turn off only if you\'ve made prepayments and want to enter the bank\'s actual balance yourself.</div></div><div class="form-row"><div class="form-group"><label>Rate (%)</label><input type="number" step="0.01" id="loanRate" value="' + (item ? item.rate : '') + '"></div><div class="form-group"><label>EMI (Rs.)</label><input type="number" id="loanEMI" value="' + (item ? item.emi : '') + '"></div></div><div class="form-row"><div class="form-group"><label>Tenure (Months)</label><input type="number" id="loanTenure" value="' + (item ? item.tenure : '') + '"></div><div class="form-group"><label>Start Date</label><input type="date" id="loanStartDate" value="' + (item ? item.startDate : '') + '"></div></div><div class="form-group"><label>Type</label><select id="loanType"><option value="Mortgage">Mortgage</option><option value="Consumer">Consumer</option><option value="Personal">Personal</option><option value="Education">Education</option><option value="Car">Car</option></select></div><button class="btn btn-primary" style="width: 100%;" onclick="saveLoan()">' + (id ? 'Update' : 'Add') + ' Loan</button>';
         if (item) document.getElementById('loanType').value = item.type;
     } else if (type === 'goal') {
         const item = id ? state.goals.find(g => g.id === id) : null;
@@ -2157,15 +2199,21 @@ function saveLoan() {
     const name = document.getElementById('loanName')?.value.trim();
     const lender = document.getElementById('loanLender')?.value.trim();
     const principal = parseFloat(document.getElementById('loanPrincipal')?.value);
-    const outstanding = parseFloat(document.getElementById('loanOutstanding')?.value);
+    let outstanding = parseFloat(document.getElementById('loanOutstanding')?.value);
     const rate = parseFloat(document.getElementById('loanRate')?.value);
     const emi = parseFloat(document.getElementById('loanEMI')?.value);
     const tenure = parseFloat(document.getElementById('loanTenure')?.value);
     const startDate = document.getElementById('loanStartDate')?.value;
     const type = document.getElementById('loanType')?.value;
+    const autoOutstanding = !!document.getElementById('loanAutoOutstanding')?.checked;
     if (!name || !principal) { showToast('Please fill required fields', 'error'); return; }
 
-    const loan = { id: editingId || ('loan_' + Date.now()), name, lender, principal, outstanding, rate, emi, tenure, startDate, type };
+    if (autoOutstanding) {
+        const monthsElapsed = loanMonthsElapsed({ startDate }, new Date());
+        outstanding = Math.round(calcOutstandingBalance(principal, rate, tenure, monthsElapsed));
+    }
+
+    const loan = { id: editingId || ('loan_' + Date.now()), name, lender, principal, outstanding, rate, emi, tenure, startDate, type, autoOutstanding };
     if (editingId) {
         const idx = state.loans.findIndex(l => l.id === editingId);
         if (idx >= 0) state.loans[idx] = loan;
