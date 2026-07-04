@@ -449,9 +449,24 @@
                         <div class="card-icon"><i class="fas fa-hand-holding-dollar"></i></div>
                         <div class="card-label" id="expenseTotalLabel">Total Expenses</div>
                         <div class="card-value" id="expenseTotal">Rs.0</div>
+                        <div class="card-change" id="expenseTotalPct">0% of income</div>
                         <div class="card-sub" id="expenseTotalSub">All categories</div>
                     </div>
-                    <div class="dash-card savings">
+                    <div class="dash-card networth" id="expenseSavingsCard">
+                        <div class="card-icon"><i class="fas fa-piggy-bank"></i></div>
+                        <div class="card-label">Savings</div>
+                        <div class="card-value" id="expenseSavingsTotal">Rs.0</div>
+                        <div class="card-change" id="expenseSavingsPct">0% of income</div>
+                        <div class="card-sub" id="expenseSavingsSub">Income - Total Expenses</div>
+                    </div>
+                    <div class="dash-card loan" id="expenseLoanCard" style="cursor:pointer;" onclick="toggleExpenseLoanFilter()" title="Click to view this month's loan transactions in Expense History below">
+                        <div class="card-icon"><i class="fas fa-landmark"></i></div>
+                        <div class="card-label">Loan</div>
+                        <div class="card-value" id="expenseLoanTotal">Rs.0</div>
+                        <div class="card-change" id="expenseLoanPct">0% of income</div>
+                        <div class="card-sub" id="expenseLoanSub">0 active loans</div>
+                    </div>
+                    <div class="dash-card savings" id="expenseFixedCard" style="cursor:pointer;" onclick="toggleExpenseFixedFilter()" title="Click to view this month's Fixed Expenses in Expense History below">
                         <div class="card-icon"><i class="fas fa-arrows-rotate"></i></div>
                         <div class="card-label">Monthly Fixed Expense</div>
                         <div class="card-value" id="expenseFixedTotal">Rs.0</div>
@@ -471,18 +486,6 @@
                     <div class="panel-title"><i class="fas fa-diagram-project"></i> Subcategory Breakdown <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(click a subcategory to trim Expense History further)</span></div>
                 </div>
                 <div class="dashboard-grid" id="expenseSubcategoryBreakdown"></div>
-            </div>
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title"><i class="fas fa-arrows-rotate"></i> Fixed Expenses <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(recurring, e.g. rent for the next 2 years)</span></div>
-                    <button class="btn btn-primary" onclick="openRecurringModal('Expense')"><i class="fas fa-plus"></i> Add Fixed Expense</button>
-                </div>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>Category</th><th>Amount</th><th>Frequency</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
-                        <tbody id="recurringExpenseTable"></tbody>
-                    </table>
-                </div>
             </div>
             <div class="chart-grid">
                 <div class="panel">
@@ -688,6 +691,9 @@
                 <button class="nav-tab active" onclick="switchAdminSection('category')" data-admin-tab="category">
                     <i class="fas fa-tags"></i> Category &amp; Subcategory
                 </button>
+                <button class="nav-tab" onclick="switchAdminSection('fixedexpense')" data-admin-tab="fixedexpense">
+                    <i class="fas fa-arrows-rotate"></i> Fixed Expenses
+                </button>
                 <button class="nav-tab" onclick="switchAdminSection('budget')" data-admin-tab="budget">
                     <i class="fas fa-sliders"></i> Budget Configuration
                 </button>
@@ -713,6 +719,21 @@
                         <table class="config-table">
                             <thead><tr><th style="width:140px;">Type</th><th style="width:220px;">Category</th><th>Subcategories</th><th style="width:70px;">Actions</th></tr></thead>
                             <tbody id="categoryConfigTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-section" id="adminSection-fixedexpense" style="display:none;">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fas fa-arrows-rotate"></i> Fixed Expenses <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(recurring, e.g. rent for the next 2 years)</span></div>
+                        <button class="btn btn-primary" onclick="openRecurringModal('Expense')"><i class="fas fa-plus"></i> Add Fixed Expense</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Category</th><th>Amount</th><th>Frequency</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody id="recurringExpenseTable"></tbody>
                         </table>
                     </div>
                 </div>
@@ -1069,7 +1090,6 @@ const DEFAULT_ASSETS = [
 
 const DEFAULT_TRANSACTIONS = [
     { id: 'TXN00001', date: '2024-01-01', type: 'Income', category: 'Salary', subcategory: 'Monthly Salary', classification: 'Income', amount: 85000, payment: 'Bank Transfer', bank: 'HDFC Savings', member: 'Self', vendor: 'Employer', notes: 'January Salary' },
-    { id: 'TXN00002', date: '2024-01-01', type: 'Expense', category: 'Home Loan EMI', subcategory: 'Principal', classification: 'Need', amount: 32000, payment: 'Auto Debit', bank: 'HDFC Savings', member: 'Self', vendor: 'HDFC Bank', notes: 'Home Loan EMI' },
     { id: 'TXN00003', date: '2024-01-05', type: 'Expense', category: 'Groceries', subcategory: 'Vegetables', classification: 'Need', amount: 2800, payment: 'UPI', bank: 'HDFC Savings', member: 'Self', vendor: 'Big Basket', notes: 'Weekly groceries' },
     { id: 'TXN00004', date: '2024-01-08', type: 'Expense', category: 'Fuel', subcategory: 'Petrol', classification: 'Need', amount: 3200, payment: 'UPI', bank: 'HDFC Savings', member: 'Self', vendor: 'Indian Oil', notes: 'Monthly fuel' },
     { id: 'TXN00005', date: '2024-01-10', type: 'Investment', category: 'Mutual Fund', subcategory: 'ELSS', classification: 'Investment', amount: 10000, payment: 'Auto Debit', bank: 'HDFC Savings', member: 'Self', vendor: 'Groww', notes: 'SIP January' },
@@ -1110,6 +1130,8 @@ let charts = {};
 let editingId = null;
 let expenseFiltersInitialized = false;
 let expenseSubcatFilterKey = '';
+let expenseFixedOnlyFilter = false;
+let expenseLoanOnlyFilter = false;
 let expenseSubcatEntries = [];
 let expenseCatEntries = [];
 let expenseSelectedCategory = '';
@@ -1434,6 +1456,7 @@ function populateFilters() {
 
 function renderAll() {
     syncAutoLoanOutstanding();
+    syncAllLoanTransactions();
     regenerateAllRecurring();
     renderDashboard();
     renderIncome();
@@ -1713,6 +1736,48 @@ function getTotalActiveEMI() {
 
 function getInactiveLoanYear(item) {
     return parseDate(item.startDate).getFullYear();
+}
+
+/* ===================== LOAN <-> TRANSACTION MAPPING ===================== */
+// Every loan gets one auto-generated Expense transaction per EMI already due, tagged with `loanId`
+// so the Loans tab and the Expense History are linked by ID rather than by guessing from a category
+// name. Each transaction's date = that EMI's due date (loan start date, advanced monthly) and its
+// amount = the loan's EMI. Wipe-and-regenerate keeps this in sync whenever a loan is edited — same
+// pattern used for Fixed (recurring) Items further down.
+function regenerateLoanInstances(loanId) {
+    state.transactions = state.transactions.filter(t => t.loanId !== loanId);
+    const loan = state.loans.find(l => l.id === loanId);
+    if (!loan) return;
+
+    const today = new Date();
+    const start = parseDate(loan.startDate);
+    const paidMonths = Math.min(loanMonthsElapsed(loan, today), loan.tenure || 0);
+    if (paidMonths <= 0) return;
+
+    let cursor = new Date(start);
+    for (let n = 0; n < paidMonths; n++) {
+        state.transactions.push({
+            id: loan.id + '_emi_' + fmtDateStr(cursor).replace(/-/g, ''),
+            date: fmtDateStr(cursor),
+            type: 'Expense',
+            category: loan.name,
+            subcategory: 'EMI',
+            classification: 'Need',
+            amount: loan.emi,
+            payment: 'Auto Debit',
+            bank: loan.lender,
+            member: 'Self',
+            vendor: loan.lender,
+            notes: loan.name + ' EMI (' + fmtDateStr(cursor) + ')',
+            loanId: loan.id
+        });
+        cursor = advanceByFrequency(cursor, 'Monthly');
+    }
+}
+
+function syncAllLoanTransactions() {
+    if (!state.loans) return;
+    state.loans.forEach(loan => regenerateLoanInstances(loan.id));
 }
 
 function populateInactiveLoanYearFilter(completedLoansAll) {
@@ -2109,12 +2174,13 @@ function switchAdminSection(section) {
     const btn = document.querySelector('[data-admin-tab="' + section + '"]');
     if (btn) btn.classList.add('active');
 
-    ['category', 'budget', 'networth'].forEach(s => {
+    ['category', 'fixedexpense', 'budget', 'networth'].forEach(s => {
         const el = document.getElementById('adminSection-' + s);
         if (el) el.style.display = (s === section) ? 'block' : 'none';
     });
 
     if (section === 'category') renderCategoryConfig();
+    else if (section === 'fixedexpense') renderRecurringExpense();
     else if (section === 'budget') renderBudgetConfig();
     else if (section === 'networth') { renderNetWorth(); setTimeout(renderNetWorthCharts, 100); }
 }
@@ -2308,13 +2374,18 @@ function deleteGoal(id) {
     saveState(); renderAll(); showToast('Goal deleted', 'info');
 }
 
-function editTransaction(id) { openModal('transaction', id); }
+function editTransaction(id) {
+    const tx = state.transactions.find(t => t.id === id);
+    if (tx && tx.loanId) { editLoan(tx.loanId); return; }
+    openModal('transaction', id);
+}
 function editLoan(id) { openModal('loan', id); }
 
 function deleteTransaction(id) {
     if (!confirm('Delete this transaction?')) return;
     const tx = state.transactions.find(t => t.id === id);
     if (tx && tx.recurringId) { showToast('This entry is auto-generated by a Fixed Item. Edit or delete the Fixed Item instead.', 'error'); return; }
+    if (tx && tx.loanId) { showToast('This entry is auto-generated by a Loan EMI. Edit or delete the Loan instead.', 'error'); return; }
     state.transactions = state.transactions.filter(t => t.id !== id);
     saveState(); renderAll(); showToast('Transaction deleted', 'info');
 }
@@ -2541,8 +2612,9 @@ function renderRecurringInvestment() {
 /* =================== END RECURRING (FIXED) ITEMS ENGINE =================== */
 
 function deleteLoan(id) {
-    if (!confirm('Delete this loan?')) return;
+    if (!confirm('Delete this loan? Its mapped EMI transactions in Expense History will be removed too.')) return;
     state.loans = state.loans.filter(l => l.id !== id);
+    state.transactions = state.transactions.filter(t => t.loanId !== id);
     saveState(); renderAll(); showToast('Loan deleted', 'info');
 }
 
@@ -2797,14 +2869,18 @@ function filterExpenseByCategoryIndex(idx) {
     if (!entry) return;
     const isActive = expenseSelectedCategory === entry.category;
     expenseSelectedCategory = isActive ? '' : entry.category;
-    // Selecting/deselecting a category invalidates any subcategory drill-down
+    // Selecting/deselecting a category invalidates any subcategory drill-down or fixed/loan-only lens
     expenseSubcatFilterKey = '';
+    expenseFixedOnlyFilter = false;
+    expenseLoanOnlyFilter = false;
     renderExpense();
 }
 
 function clearExpenseCategoryFilter() {
     expenseSelectedCategory = '';
     expenseSubcatFilterKey = '';
+    expenseFixedOnlyFilter = false;
+    expenseLoanOnlyFilter = false;
     renderExpense();
 }
 
@@ -2818,6 +2894,45 @@ function filterExpenseBySubcategoryIndex(idx) {
 
 function clearExpenseSubcatFilter() {
     expenseSubcatFilterKey = '';
+    renderExpense();
+}
+
+// Toggling the "Monthly Fixed Expense" card drills the Expense History table down to just the
+// recurring (Fixed Expense) transactions for the month currently in scope — across all categories.
+// Clicking it again clears the lens. Selecting a category or subcategory elsewhere clears it too.
+function toggleExpenseFixedFilter() {
+    expenseFixedOnlyFilter = !expenseFixedOnlyFilter;
+    if (expenseFixedOnlyFilter) {
+        expenseSelectedCategory = '';
+        expenseSubcatFilterKey = '';
+        expenseLoanOnlyFilter = false;
+        // Make sure a single month is in view so "this month" is unambiguous
+        const monthSelect = document.getElementById('expenseFilterMonth');
+        if (monthSelect && !monthSelect.value) {
+            monthSelect.value = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+        }
+    }
+    renderExpense();
+}
+
+// Loan-related transactions are now identified by a real loanId link (see
+// regenerateLoanInstances) rather than guessing from the category name.
+
+// Toggling the "Loan" card drills the Expense History table down to just loan-related
+// transactions for the month currently in scope. Clicking it again clears the lens. Selecting a
+// category, subcategory, or the Fixed Expense card elsewhere clears it too.
+function toggleExpenseLoanFilter() {
+    expenseLoanOnlyFilter = !expenseLoanOnlyFilter;
+    if (expenseLoanOnlyFilter) {
+        expenseSelectedCategory = '';
+        expenseSubcatFilterKey = '';
+        expenseFixedOnlyFilter = false;
+        // Make sure a single month is in view so "this month" is unambiguous
+        const monthSelect = document.getElementById('expenseFilterMonth');
+        if (monthSelect && !monthSelect.value) {
+            monthSelect.value = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+        }
+    }
     renderExpense();
 }
 
@@ -2863,42 +2978,93 @@ function renderExpense() {
     let filtered = expenseSubcatFilterKey
         ? baseFiltered.filter(t => (t.category + '|' + (t.subcategory || '(No Subcategory)')) === expenseSubcatFilterKey)
         : baseFiltered;
+    if (expenseFixedOnlyFilter) filtered = filtered.filter(t => t.recurringId);
+    if (expenseLoanOnlyFilter) filtered = filtered.filter(t => !!t.loanId);
 
-    // Single dynamic total card — reflects whatever filters are active
-    const filteredTotal = filtered.reduce((s, t) => s + t.amount, 0);
+    // Total Expenses card always reflects every category (Fixed + one-off) for the selected
+    // year/month — it does NOT narrow down when a category/subcategory card is clicked below;
+    // only the History table and its own breakdown cards drill down.
+    let allCatFiltered = state.transactions.filter(t => t.type === 'Expense');
+    if (filterYear) allCatFiltered = allCatFiltered.filter(t => parseDate(t.date).getFullYear().toString() === filterYear);
+    if (filterMonth) allCatFiltered = allCatFiltered.filter(t => getMonthYear(t.date) === filterMonth);
+    const allCatTotal = allCatFiltered.reduce((s, t) => s + t.amount, 0);
     let totalLabel = 'Total Expenses';
     if (filterMonth) totalLabel = 'Expenses - ' + filterMonth;
     else if (filterYear) totalLabel = 'Expenses - ' + filterYear;
-    else if (filterCat) totalLabel = 'Total Expenses';
-    const totalSub = filterCat ? filterCat : 'All categories';
 
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-    el('expenseTotalLabel', totalLabel);
-    el('expenseTotal', fmt(filteredTotal));
-    el('expenseTotalSub', totalSub);
 
-    const currentMonthStr = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-    const fixedExpMonthTx = state.transactions.filter(t => t.type === 'Expense' && t.recurringId && getMonthYear(t.date) === currentMonthStr);
+    // The Fixed Expense / Loan cards reflect whichever month is currently in view (the
+    // selected Month filter, or today's month when nothing is selected) so the cards and the
+    // History drill-down below always agree on "that month".
+    const fixedScopeMonth = filterMonth || new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+    const fixedScopeIncome = state.transactions.filter(t => t.type === 'Income' && getMonthYear(t.date) === fixedScopeMonth).reduce((s, t) => s + t.amount, 0) || state.salary;
+
+    // Loan - each loan's EMI is now auto-mapped 1:1 to its own Expense transaction (t.loanId,
+    // date = that EMI's due date, amount = the loan's EMI), so this is a straight sum of that
+    // month's loan-linked transactions rather than a separate estimate.
+    const loanMonthTx = state.transactions.filter(t => t.type === 'Expense' && t.loanId && getMonthYear(t.date) === fixedScopeMonth);
+    const totalLoanPaid = loanMonthTx.reduce((s, t) => s + t.amount, 0);
+    const loanPct = fixedScopeIncome > 0 ? (totalLoanPaid / fixedScopeIncome) * 100 : 0;
+    const loansPaidCount = new Set(loanMonthTx.map(t => t.loanId)).size;
+    el('expenseLoanTotal', fmt(totalLoanPaid));
+    el('expenseLoanPct', loanPct.toFixed(1) + '% of income');
+    el('expenseLoanSub', loansPaidCount + ' loan' + (loansPaidCount === 1 ? '' : 's') + ' paid · ' + fixedScopeMonth);
+
+    // Total Expenses already includes loan-linked transactions above — they're now regular Expense
+    // rows in state.transactions — so no separate addition is needed; just surface the % of income.
+    const totalExpensePct = fixedScopeIncome > 0 ? (allCatTotal / fixedScopeIncome) * 100 : 0;
+    el('expenseTotalLabel', totalLabel);
+    el('expenseTotal', fmt(allCatTotal));
+    el('expenseTotalPct', totalExpensePct.toFixed(1) + '% of income');
+    el('expenseTotalSub', 'All categories (Fixed + one-off + Loan EMIs), incl. ' + fmt(totalLoanPaid) + ' loan');
+
+    // Savings = that month's Income minus Total Expenses (the same combined figure shown above).
+    const savingsTotal = fixedScopeIncome - allCatTotal;
+    const savingsPct = fixedScopeIncome > 0 ? (savingsTotal / fixedScopeIncome) * 100 : 0;
+    el('expenseSavingsTotal', fmt(savingsTotal));
+    el('expenseSavingsPct', savingsPct.toFixed(1) + '% of income');
+    const savingsValueEl = document.getElementById('expenseSavingsTotal');
+    if (savingsValueEl) savingsValueEl.style.color = savingsTotal < 0 ? 'var(--danger)' : '';
+
+    const fixedExpMonthTx = state.transactions.filter(t => t.type === 'Expense' && t.recurringId && getMonthYear(t.date) === fixedScopeMonth);
     const fixedExpMonthTotal = fixedExpMonthTx.reduce((s, t) => s + t.amount, 0);
     const fixedExpCount = (state.recurringItems || []).filter(r => r.type === 'Expense').length;
-    const fixedExpPct = state.salary > 0 ? (fixedExpMonthTotal / state.salary) * 100 : 0;
+    const fixedExpPct = fixedScopeIncome > 0 ? (fixedExpMonthTotal / fixedScopeIncome) * 100 : 0;
     el('expenseFixedTotal', fmt(fixedExpMonthTotal));
     el('expenseFixedPct', fixedExpPct.toFixed(1) + '% of income');
-    el('expenseFixedSub', fixedExpCount + ' fixed item' + (fixedExpCount === 1 ? '' : 's') + ' · ' + currentMonthStr);
+    el('expenseFixedSub', fixedExpCount + ' fixed item' + (fixedExpCount === 1 ? '' : 's') + ' · ' + fixedScopeMonth);
+    const fixedCardEl = document.getElementById('expenseFixedCard');
+    if (fixedCardEl) fixedCardEl.style.outline = expenseFixedOnlyFilter ? '2px solid var(--primary)' : 'none';
+    const loanCardEl = document.getElementById('expenseLoanCard');
+    if (loanCardEl) loanCardEl.style.outline = expenseLoanOnlyFilter ? '2px solid var(--primary)' : 'none';
 
     const historyPanel = document.getElementById('expenseHistoryPanel');
-    if (historyPanel) historyPanel.style.display = filterCat ? '' : 'none';
+    if (historyPanel) historyPanel.style.display = (filterCat || expenseFixedOnlyFilter || expenseLoanOnlyFilter) ? '' : 'none';
 
-    if (!filterCat) {
+    if (!filterCat && !expenseFixedOnlyFilter && !expenseLoanOnlyFilter) {
         tbody.innerHTML = '';
     } else if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-hand-holding-dollar"></i><p>No expenses found</p></div></td></tr>';
     } else {
+        // % of Salary uses each transaction's own month income (Income transactions that month,
+        // falling back to the configured monthly salary) rather than a single global figure, so it
+        // stays meaningful even when income varies month to month or the salary field is unset.
+        const monthIncomeCache = {};
+        const getMonthIncome = (my) => {
+            if (monthIncomeCache[my] !== undefined) return monthIncomeCache[my];
+            const inc = state.transactions.filter(t => t.type === 'Income' && getMonthYear(t.date) === my).reduce((s, t) => s + t.amount, 0) || state.salary;
+            monthIncomeCache[my] = inc;
+            return inc;
+        };
         tbody.innerHTML = filtered.map(t => {
-            const pctSalary = state.salary > 0 ? (t.amount / state.salary) * 100 : 0;
-            const recTag = t.recurringId ? ' <i class="fas fa-arrows-rotate" style="font-size:0.7rem; opacity:0.7;" title="Auto-generated by a Fixed Item"></i>' : '';
+            const monthIncome = getMonthIncome(getMonthYear(t.date));
+            const pctSalary = monthIncome > 0 ? (t.amount / monthIncome) * 100 : 0;
+            const recTag = t.recurringId ? ' <i class="fas fa-arrows-rotate" style="font-size:0.7rem; opacity:0.7;" title="Auto-generated by a Fixed Item"></i>' : (t.loanId ? ' <i class="fas fa-landmark" style="font-size:0.7rem; opacity:0.7;" title="Auto-generated by a Loan EMI"></i>' : '');
             const actions = t.recurringId
                 ? '<div class="action-btns"><button class="action-btn edit" title="Managed by Fixed Item — click to edit the rule" onclick="editRecurringItem(\'' + t.recurringId + '\')"><i class="fas fa-arrows-rotate"></i></button></div>'
+                : t.loanId
+                ? '<div class="action-btns"><button class="action-btn edit" title="Managed by a Loan — click to edit the loan" onclick="editLoan(\'' + t.loanId + '\')"><i class="fas fa-landmark"></i></button></div>'
                 : '<div class="action-btns"><button class="action-btn edit" onclick="editTransaction(\'' + t.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteTransaction(\'' + t.id + '\')"><i class="fas fa-trash"></i></button></div>';
             return '<tr><td><strong>' + t.id + '</strong></td><td>' + parseDate(t.date).toLocaleDateString('en-IN') + '</td><td><span class="badge badge-danger">' + t.category + '</span>' + recTag + '</td><td>' + (t.subcategory || '-') + '</td><td style="font-weight:700;">' + fmt(t.amount) + '</td><td>' + pctSalary.toFixed(1) + '%</td><td>' + t.payment + '</td><td>' + (t.vendor || '-') + '</td><td>' + actions + '</td></tr>';
         }).join('');
@@ -2975,10 +3141,20 @@ function renderExpense() {
         }
     }
 
-    // Active subcategory filter badge above the Expense History table
+    // Active subcategory / fixed-only filter badge above the Expense History table
     const subcatBadgeEl = document.getElementById('expenseSubcatFilterBadge');
     if (subcatBadgeEl) {
-        if (expenseSubcatFilterKey) {
+        if (expenseFixedOnlyFilter) {
+            subcatBadgeEl.innerHTML = '<div class="import-summary-bar" style="margin-bottom:16px;">' +
+                '<div><i class="fas fa-arrows-rotate"></i> Showing only <strong>Fixed Expenses</strong> for ' + fixedScopeMonth + ' — <strong>' + filtered.length + '</strong> transaction' + (filtered.length === 1 ? '' : 's') + '</div>' +
+                '<button class="btn btn-secondary" onclick="toggleExpenseFixedFilter()"><i class="fas fa-xmark"></i> Clear</button>' +
+            '</div>';
+        } else if (expenseLoanOnlyFilter) {
+            subcatBadgeEl.innerHTML = '<div class="import-summary-bar" style="margin-bottom:16px;">' +
+                '<div><i class="fas fa-landmark"></i> Showing only <strong>Loan</strong> transactions for ' + fixedScopeMonth + ' — <strong>' + filtered.length + '</strong> transaction' + (filtered.length === 1 ? '' : 's') + '</div>' +
+                '<button class="btn btn-secondary" onclick="toggleExpenseLoanFilter()"><i class="fas fa-xmark"></i> Clear</button>' +
+            '</div>';
+        } else if (expenseSubcatFilterKey) {
             const [badgeCat, badgeSub] = expenseSubcatFilterKey.split('|');
             subcatBadgeEl.innerHTML = '<div class="import-summary-bar" style="margin-bottom:16px;">' +
                 '<div><i class="fas fa-filter"></i> Showing only <strong>' + badgeSub + '</strong> (' + badgeCat + ') — <strong>' + filtered.length + '</strong> transaction' + (filtered.length === 1 ? '' : 's') + '</div>' +
