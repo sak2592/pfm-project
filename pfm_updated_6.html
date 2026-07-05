@@ -2429,7 +2429,13 @@ function periodsPerYear(frequency) {
 // always wipe-and-regenerate, editing a rule (amount, dates, step-up %, etc.)
 // automatically rewrites every past + future instance to match.
 function regenerateRuleInstances(ruleId) {
-    state.transactions = state.transactions.filter(t => t.recurringId !== ruleId);
+    // Match on recurringId AND on the deterministic "ruleId_YYYYMMDD" id prefix.
+    // The Google Sheets sync backend can drop custom fields like recurringId on a
+    // save/load round trip; the id prefix is a fallback that still lets us recognize
+    // (and remove) previously-generated rows for this rule even if recurringId was lost,
+    // so refreshing the page never stacks duplicate Fixed Expense/Investment entries.
+    const idPrefix = ruleId + '_';
+    state.transactions = state.transactions.filter(t => t.recurringId !== ruleId && !(typeof t.id === 'string' && t.id.startsWith(idPrefix)));
     const rule = state.recurringItems.find(r => r.id === ruleId);
     if (!rule || !rule.active) return;
 
@@ -2490,9 +2496,26 @@ function repairDuplicateRecurringIds() {
     return changed;
 }
 
+// One-time self-heal for data that already accumulated duplicate rows (e.g. from repeated
+// refreshes before the id-prefix fix above existed, or a lossy Sheets round-trip). Since every
+// auto-generated transaction has a deterministic id (ruleId_YYYYMMDD), any duplicates share the
+// exact same id - so collapsing by id is always safe and never removes a legitimate transaction.
+function dedupeTransactionsById() {
+    const seen = new Set();
+    const before = state.transactions.length;
+    state.transactions = state.transactions.filter(t => {
+        if (seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
+    });
+    return state.transactions.length !== before;
+}
+
 function regenerateAllRecurring() {
     if (!state.recurringItems) state.recurringItems = [];
-    if (repairDuplicateRecurringIds()) saveState();
+    let needsSave = repairDuplicateRecurringIds();
+    if (dedupeTransactionsById()) needsSave = true;
+    if (needsSave) saveState();
     state.recurringItems.forEach(r => regenerateRuleInstances(r.id));
 }
 
