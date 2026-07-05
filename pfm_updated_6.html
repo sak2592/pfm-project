@@ -322,25 +322,19 @@
             <div class="dashboard-grid">
                 <div class="dash-card salary">
                     <div class="card-icon"><i class="fas fa-wallet"></i></div>
-                    <div class="card-label">Monthly Income</div>
+                    <div class="card-label">Average Income</div>
                     <div class="card-value" id="dbIncome">Rs.0</div>
                     <div class="card-change" id="dbIncomePct"><i class="fas fa-chart-line"></i> 100% base salary</div>
                 </div>
-                <div class="dash-card emi">
-                    <div class="card-icon"><i class="fas fa-hand-holding-dollar"></i></div>
-                    <div class="card-label">Total Expenses</div>
-                    <div class="card-value" id="dbExpenses">Rs.0</div>
-                    <div class="card-change" id="dbExpensePct"><i class="fas fa-percentage"></i> 0% of salary</div>
-                </div>
                 <div class="dash-card savings">
                     <div class="card-icon"><i class="fas fa-piggy-bank"></i></div>
-                    <div class="card-label">Net Savings</div>
+                    <div class="card-label">Total Savings</div>
                     <div class="card-value" id="dbSavings">Rs.0</div>
                     <div class="card-change" id="dbSavingsRate"><i class="fas fa-chart-line"></i> 0%</div>
                 </div>
                 <div class="dash-card budget">
                     <div class="card-icon"><i class="fas fa-bullseye"></i></div>
-                    <div class="card-label">Investments</div>
+                    <div class="card-label">Total Investment</div>
                     <div class="card-value" id="dbInvestments">Rs.0</div>
                     <div class="card-change" id="dbInvestPct"><i class="fas fa-percentage"></i> 0% of salary</div>
                 </div>
@@ -362,11 +356,18 @@
                     <div class="card-value" id="dbHealthScore">0</div>
                     <div class="card-sub">Out of 100</div>
                 </div>
-                <div class="dash-card" style="border-color: var(--purple);">
+                <div class="dash-card health" id="dbEmergencyCard" style="border-color: var(--purple);" title="Emergency fund (tracked in Goals) — how many months it would cover at your current monthly expense">
                     <div class="card-icon" style="background: rgba(139,92,246,0.15); color: var(--purple);"><i class="fas fa-shield-halved"></i></div>
                     <div class="card-label">Emergency Fund</div>
-                    <div class="card-value" id="dbEmergency">0 mo</div>
-                    <div class="card-sub">Months of expenses covered</div>
+                    <div class="card-value" id="dbEmergency">0 months</div>
+                    <div class="card-sub">Covered at current monthly expense</div>
+                </div>
+                <div class="dash-card budget" id="dbPureAvgCard" title="Average monthly expense excluding EMI and Investment — your 'pure' lifestyle spend">
+                    <div class="card-icon"><i class="fas fa-wallet"></i></div>
+                    <div class="card-label">Avg Pure Expense / mo</div>
+                    <div class="card-value" id="dbPureAvgTotal">Rs.0</div>
+                    <div class="card-change" id="dbPureAvgPct">0% of avg income</div>
+                    <div class="card-sub" id="dbPureAvgSub">Excl. EMI &amp; Investment</div>
                 </div>
                 <div class="dash-card" style="border-color: var(--pink);">
                     <div class="card-icon" style="background: rgba(236,72,153,0.15); color: var(--pink);"><i class="fas fa-umbrella"></i></div>
@@ -385,40 +386,21 @@
                     <div class="chart-container"><canvas id="budgetBarChart"></canvas></div>
                 </div>
             </div>
+
+            <div class="panel">
+                <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-line"></i> Income vs Expense vs Savings Trend</div></div>
+                <div class="chart-container"><canvas id="savingsTrendChart"></canvas></div>
+            </div>
             
             <div class="panel">
-                <div class="nav-tabs" style="margin-bottom: 20px;">
-                    <button class="nav-tab active" onclick="switchDashboardOverview('monthly')" data-db-overview-tab="monthly">
-                        <i class="fas fa-calendar-day"></i> Monthly Overview
-                    </button>
-                    <button class="nav-tab" onclick="switchDashboardOverview('yearly')" data-db-overview-tab="yearly">
-                        <i class="fas fa-calendar"></i> Yearly Overview
-                    </button>
+                <div class="panel-header"><div class="panel-title"><i class="fas fa-calendar"></i> Yearly Overview</div></div>
+                <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
+                    <select id="dbYearlyOverviewSelect" class="config-input" onchange="renderDashboardYearlyOverview()" style="width: auto; min-width: 180px;">
+                        <option value="">Select Year</option>
+                    </select>
                 </div>
-
-                <div id="dbOverviewSection-monthly">
-                    <div style="display:flex; justify-content:flex-end; gap:12px; margin-bottom:16px;">
-                        <select id="dbMonthlyOverviewYearSelect" class="config-input" onchange="onDbMonthlyOverviewYearChange()" style="width: auto; min-width: 120px;">
-                            <option value="">Year</option>
-                        </select>
-                        <select id="dbMonthlyOverviewSelect" class="config-input" onchange="renderDashboardMonthlyOverview()" style="width: auto; min-width: 150px;">
-                            <option value="">Select Month</option>
-                        </select>
-                    </div>
-                    <div id="dbMonthlyOverviewContent">
-                        <div class="empty-state"><i class="fas fa-calendar-day"></i><p>Select a month to view overview</p></div>
-                    </div>
-                </div>
-
-                <div id="dbOverviewSection-yearly" style="display:none;">
-                    <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
-                        <select id="dbYearlyOverviewSelect" class="config-input" onchange="renderDashboardYearlyOverview()" style="width: auto; min-width: 180px;">
-                            <option value="">Select Year</option>
-                        </select>
-                    </div>
-                    <div id="dbYearlyOverviewContent">
-                        <div class="empty-state"><i class="fas fa-calendar"></i><p>Select a year to view overview</p></div>
-                    </div>
+                <div id="dbYearlyOverviewContent">
+                    <div class="empty-state"><i class="fas fa-calendar"></i><p>Select a year to view overview</p></div>
                 </div>
             </div>
 
@@ -768,6 +750,18 @@
             </div>
 
             <div class="admin-section" id="adminSection-networth" style="display:none;">
+                <div class="panel">
+                    <div class="panel-header"><div class="panel-title"><i class="fas fa-piggy-bank"></i> Opening Balances</div></div>
+                    <div style="margin-bottom: 16px; padding: 14px 18px; background: rgba(99,102,241,0.05); border-radius: 12px; border: 1px solid rgba(99,102,241,0.15); color: var(--text-muted); font-size: 0.85rem;">
+                        <i class="fas fa-circle-info" style="color: var(--primary);"></i>
+                        If you already had savings or investments before you started logging transactions here, enter them below. They're added on top of whatever your logged transactions add up to, on the Dashboard's Total Savings and Total Investment cards.
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Pre-existing Savings (Rs.)</label><input type="number" class="config-input" id="openingSavingsInput" value="0"></div>
+                        <div class="form-group"><label>Pre-existing Investments (Rs.)</label><input type="number" class="config-input" id="openingInvestmentsInput" value="0"></div>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveOpeningBalances()"><i class="fas fa-save"></i> Save Opening Balances</button>
+                </div>
                 <div class="chart-grid">
                     <div class="panel">
                         <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-pie"></i> Asset Allocation</div></div>
@@ -1065,7 +1059,7 @@ const DEFAULT_LOANS = [
 ];
 
 const DEFAULT_GOALS = [
-    { id: 'goal_1', name: 'Emergency Fund', icon: 'fa-shield-halved', target: 600000, saved: 480000, monthly: 5000, targetDate: '2025-01', priority: 'Critical', description: 'Safety Net - 6 Months Expenses' },
+    { id: 'goal_1', name: 'Emergency Fund', icon: 'fa-shield-halved', target: 600000, saved: 0, monthly: 5000, targetDate: '2025-01', priority: 'Critical', description: 'Safety Net - 6 Months Expenses' },
     { id: 'goal_2', name: 'Europe Vacation', icon: 'fa-plane', target: 300000, saved: 195000, monthly: 8000, targetDate: '2025-06', priority: 'Medium', description: 'Family vacation to Europe' },
     { id: 'goal_3', name: 'Child Education', icon: 'fa-graduation-cap', target: 2000000, saved: 350000, monthly: 15000, targetDate: '2030-06', priority: 'High', description: 'Higher education fund' },
     { id: 'goal_4', name: 'House Renovation', icon: 'fa-house-chimney', target: 500000, saved: 80000, monthly: 12000, targetDate: '2027-01', priority: 'Medium', description: 'Kitchen + Living Room' },
@@ -1082,7 +1076,6 @@ const DEFAULT_ASSETS = [
     { name: 'NPS', category: 'Retirement', purchaseValue: 60000, currentValue: 63000, liquid: false },
     { name: 'FD/RD', category: 'Debt', purchaseValue: 100000, currentValue: 107000, liquid: true },
     { name: 'Savings Account', category: 'Cash', purchaseValue: 280000, currentValue: 280000, liquid: true },
-    { name: 'Emergency Fund', category: 'Cash', purchaseValue: 480000, currentValue: 480000, liquid: true },
     { name: 'Cash in Hand', category: 'Cash', purchaseValue: 15000, currentValue: 15000, liquid: true }
 ];
 
@@ -1115,6 +1108,8 @@ const DEFAULT_RECURRING_ITEMS = [
 
 let state = {
     salary: 92000,
+    openingSavings: 0,
+    openingInvestments: 0,
     categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
     categoryConfig: JSON.parse(JSON.stringify(DEFAULT_CATEGORY_CONFIG)),
     transactions: JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS)),
@@ -1137,7 +1132,6 @@ let investmentFiltersInitialized = false;
 let editingType = null;
 let currentTab = 'overview';
 let currentAdminSection = 'category';
-let currentDashboardOverview = 'monthly';
 
 // ===== CORE DATA FUNCTIONS =====
 function saveState() {
@@ -1163,6 +1157,8 @@ function loadData() {
             if (!state.assets) state.assets = JSON.parse(JSON.stringify(DEFAULT_ASSETS));
             if (!state.recurringItems) state.recurringItems = JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS));
             if (!state.salaryHistory) state.salaryHistory = [];
+            if (typeof state.openingSavings !== 'number') state.openingSavings = 0;
+            if (typeof state.openingInvestments !== 'number') state.openingInvestments = 0;
         }
     } catch (e) {
         console.error('Load error', e);
@@ -1505,6 +1501,27 @@ function getMonthYear(dateStr) {
     return d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
 }
 
+// Chronologically-sorted (not just alphabetically-sorted) month-by-month series covering every
+// month that has any Income, Expense, or Investment transaction. Used for the dashboard's Average
+// Income, Total Savings, and Savings Trend chart, so they all reflect the person's full history
+// rather than just the current month.
+function getMonthlyFinanceSeries() {
+    const map = {};
+    state.transactions.forEach(t => {
+        if (t.type !== 'Income' && t.type !== 'Expense' && t.type !== 'Investment') return;
+        const d = parseDate(t.date);
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        if (!map[key]) map[key] = { key, label: getMonthYear(t.date), income: 0, expenses: 0, investments: 0 };
+        const amount = parseFloat(t.amount) || 0;
+        if (t.type === 'Income') map[key].income += amount;
+        else if (t.type === 'Expense') map[key].expenses += amount;
+        else map[key].investments += amount;
+    });
+    return Object.values(map)
+        .sort((a, b) => a.key.localeCompare(b.key))
+        .map(m => ({ ...m, savings: m.income - m.expenses - m.investments }));
+}
+
 function getFY(dateStr) {
     const d = parseDate(dateStr);
     const m = d.getMonth() + 1;
@@ -1588,6 +1605,21 @@ function renderDashboard() {
     const netSavings = totalIncome - totalExpenses - totalInvestments;
     const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
 
+    // Average Income and Total Savings cards look across every month on record, not just the
+    // current one - built from the same chronological series used for the Savings Trend chart.
+    const financeSeries = getMonthlyFinanceSeries();
+    const averageIncome = financeSeries.length
+        ? financeSeries.reduce((s, m) => s + m.income, 0) / financeSeries.length
+        : state.salary;
+    const totalSavingsAllTime = (state.openingSavings || 0) + financeSeries.reduce((s, m) => s + m.savings, 0);
+    const totalIncomeAllTime = financeSeries.reduce((s, m) => s + m.income, 0);
+    const overallSavingsRate = totalIncomeAllTime > 0 ? (totalSavingsAllTime / totalIncomeAllTime) * 100 : 0;
+
+    // Total Investment card = every Investment transaction ever logged, plus whatever the person
+    // already had invested before they started tracking here (Admin > Net Worth > Opening Balances).
+    const trackedInvestmentsAllTime = getTotalInvestment();
+    const totalInvestmentAllTime = trackedInvestmentsAllTime + (state.openingInvestments || 0);
+
     const totalAssets = state.assets.reduce((s, a) => s + (a.currentValue || 0), 0);
     const totalLiabilities = state.loans.reduce((s, l) => s + (l.outstanding || 0), 0);
     const netWorth = totalAssets - totalLiabilities;
@@ -1595,8 +1627,17 @@ function renderDashboard() {
     const monthlyExpenses = state.categories
         .filter(c => c.classification === 'Need' || c.classification === 'Want')
         .reduce((s, c) => s + getBudgetAmount(c), 0);
-    const emergencyFund = state.assets.find(a => a.name === 'Emergency Fund')?.currentValue || 0;
+    const emergencyFund = state.goals.find(g => g.name === 'Emergency Fund')?.saved || 0;
     const emergencyMonths = monthlyExpenses > 0 ? emergencyFund / monthlyExpenses : 0;
+
+    // ===== Avg Pure Expense / mo — all-time average monthly spend excluding EMI (loan-linked)
+    // transactions. Investment-type transactions live in a separate bucket so they're already excluded. =====
+    const allExpenseTxAllTime = state.transactions.filter(t => t.type === 'Expense');
+    const expenseMonthsSeen = [...new Set(allExpenseTxAllTime.map(t => getMonthYear(t.date)))];
+    const numExpenseMonths = expenseMonthsSeen.length || 1;
+    const pureExpenseTxAllTime = allExpenseTxAllTime.filter(t => !t.loanId);
+    const avgPureExpense = pureExpenseTxAllTime.reduce((s, t) => s + t.amount, 0) / numExpenseMonths;
+    const pureAvgPct = averageIncome > 0 ? (avgPureExpense / averageIncome) * 100 : 0;
 
     // Insurance nodal: annualized active recurring premiums (Life/Health/Vehicle etc.)
     // + any one-off Insurance expense transactions logged this year that aren't tied to a recurring rule.
@@ -1623,21 +1664,25 @@ function renderDashboard() {
     healthScore = Math.max(0, Math.min(100, healthScore));
 
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-    el('dbIncome', fmt(totalIncome));
-    el('dbExpenses', fmt(totalExpenses));
-    el('dbSavings', fmt(netSavings));
-    el('dbInvestments', fmt(totalInvestments));
+    el('dbIncome', fmt(averageIncome));
+    el('dbSavings', fmt(totalSavingsAllTime));
+    el('dbInvestments', fmt(totalInvestmentAllTime));
     el('dbEMI', fmt(totalEMI));
     el('dbNetWorth', fmt(netWorth));
     el('dbHealthScore', Math.round(healthScore));
     el('dbEmergency', emergencyMonths.toFixed(1) + ' months');
     el('dbInsuranceYearly', fmt(insuranceYearlyTotal));
     el('dbInsuranceSub', insurancePolicyCount + ' polic' + (insurancePolicyCount !== 1 ? 'ies' : 'y') + ' this year');
+    el('dbPureAvgTotal', fmt(avgPureExpense));
+    el('dbPureAvgPct', pureAvgPct.toFixed(1) + '% of avg income');
+    el('dbPureAvgSub', 'Excl. EMI & Investment · avg over ' + numExpenseMonths + ' mo');
 
     const savingsEl = document.getElementById('dbSavingsRate');
     if (savingsEl) {
-        savingsEl.innerHTML = '<i class="fas fa-chart-line"></i> ' + savingsRate.toFixed(1) + '% savings rate';
-        savingsEl.className = 'card-change ' + (savingsRate >= 20 ? 'text-green' : savingsRate >= 10 ? 'text-yellow' : 'text-red');
+        let savingsText = '<i class="fas fa-chart-line"></i> ' + overallSavingsRate.toFixed(1) + '% overall savings rate';
+        if (state.openingSavings > 0) savingsText += ' \u00b7 incl. ' + fmt(state.openingSavings) + ' pre-existing';
+        savingsEl.innerHTML = savingsText;
+        savingsEl.className = 'card-change ' + (overallSavingsRate >= 20 ? 'text-green' : overallSavingsRate >= 10 ? 'text-yellow' : 'text-red');
     }
 
     // EMI % of salary
@@ -1648,27 +1693,22 @@ function renderDashboard() {
         emiPctEl.className = 'card-change ' + (emiPct <= 30 ? 'text-green' : emiPct <= 50 ? 'text-yellow' : 'text-red');
     }
 
-    // Investment % of salary
+    // Total Investment: % of all-time income that's gone into tracked investments, plus a note
+    // of how much of the card's total is the pre-existing (opening balance) amount, if any.
     const investPctEl = document.getElementById('dbInvestPct');
     if (investPctEl) {
-        const investPct = totalIncome > 0 ? (totalInvestments / totalIncome) * 100 : 0;
-        investPctEl.innerHTML = '<i class="fas fa-percentage"></i> ' + investPct.toFixed(1) + '% of income';
+        const investPct = totalIncomeAllTime > 0 ? (trackedInvestmentsAllTime / totalIncomeAllTime) * 100 : 0;
+        let investText = '<i class="fas fa-percentage"></i> ' + investPct.toFixed(1) + '% of income invested';
+        if (state.openingInvestments > 0) investText += ' \u00b7 incl. ' + fmt(state.openingInvestments) + ' pre-existing';
+        investPctEl.innerHTML = investText;
         investPctEl.className = 'card-change ' + (investPct >= 20 ? 'text-green' : investPct >= 10 ? 'text-yellow' : 'text-red');
     }
 
-    // Expense % of salary
-    const expensePctEl = document.getElementById('dbExpensePct');
-    if (expensePctEl) {
-        const expensePct = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 0;
-        expensePctEl.innerHTML = '<i class="fas fa-percentage"></i> ' + expensePct.toFixed(1) + '% of income';
-        expensePctEl.className = 'card-change ' + (expensePct <= 50 ? 'text-green' : expensePct <= 70 ? 'text-yellow' : 'text-red');
-    }
-
-    // Income % (vs base salary)
+    // Average Income % (vs base salary), and how many months it's averaged over
     const incomePctEl = document.getElementById('dbIncomePct');
     if (incomePctEl) {
-        const incomePct = state.salary > 0 ? (totalIncome / state.salary) * 100 : 0;
-        incomePctEl.innerHTML = '<i class="fas fa-chart-line"></i> ' + incomePct.toFixed(1) + '% of base salary';
+        const incomePct = state.salary > 0 ? (averageIncome / state.salary) * 100 : 0;
+        incomePctEl.innerHTML = '<i class="fas fa-chart-line"></i> ' + incomePct.toFixed(1) + '% of base salary \u00b7 avg over ' + financeSeries.length + ' mo';
         incomePctEl.className = 'card-change ' + (incomePct >= 100 ? 'text-green' : 'text-yellow');
     }
 
@@ -1714,8 +1754,7 @@ function renderDashboard() {
     }
 
     populateOverviewSelectors();
-    if (currentDashboardOverview === 'monthly') renderDashboardMonthlyOverview();
-    else renderDashboardYearlyOverview();
+    renderDashboardYearlyOverview();
 }
 
 function renderTransactions() {
@@ -2067,6 +2106,11 @@ function renderGoals() {
 }
 
 function renderNetWorth() {
+    const openingSavingsInput = document.getElementById('openingSavingsInput');
+    if (openingSavingsInput && document.activeElement !== openingSavingsInput) openingSavingsInput.value = state.openingSavings || 0;
+    const openingInvestmentsInput = document.getElementById('openingInvestmentsInput');
+    if (openingInvestmentsInput && document.activeElement !== openingInvestmentsInput) openingInvestmentsInput.value = state.openingInvestments || 0;
+
     const assetTbody = document.getElementById('assetTable');
     if (assetTbody) {
         assetTbody.innerHTML = state.assets.map(a => {
@@ -2084,6 +2128,20 @@ function renderNetWorth() {
             return '<tr><td><strong>' + l.name + '</strong></td><td>' + l.type + '</td><td>' + fmt(l.principal) + '</td><td>' + fmt(l.outstanding) + '</td><td>' + fmt(l.emi) + '</td><td>' + l.rate + '%</td><td>' + monthsRemaining + '</td></tr>';
         }).join('') + '<tr style="font-weight:700; background:rgba(239,68,68,0.1);"><td colspan="2">TOTAL LIABILITIES</td><td>' + fmt(state.loans.reduce((s,l) => s+l.principal,0)) + '</td><td>' + fmt(state.loans.reduce((s,l) => s+l.outstanding,0)) + '</td><td>' + fmt(state.loans.reduce((s,l) => s+l.emi,0)) + '</td><td colspan="2"></td></tr>';
     }
+}
+
+// Pre-existing savings/investments from before the person started logging transactions here -
+// added on top of the transaction-derived totals on the Dashboard's Total Savings / Total
+// Investment cards, so those cards reflect the person's real full position, not just what's
+// been tracked in this app.
+function saveOpeningBalances() {
+    const savings = parseFloat(document.getElementById('openingSavingsInput')?.value) || 0;
+    const investments = parseFloat(document.getElementById('openingInvestmentsInput')?.value) || 0;
+    state.openingSavings = savings;
+    state.openingInvestments = investments;
+    saveState();
+    renderAll();
+    showToast('Opening balances saved!', 'success');
 }
 
 function renderRetirement() {
@@ -2231,7 +2289,7 @@ function renderInsights() {
     const annualSavings = savings * 12;
     recs.push({ icon: 'fa-calendar-check', title: 'Annual Projection', text: 'Projected annual savings at current rate: ' + fmt(annualSavings) + '.', tag: 'Projection', tagClass: 'info' });
 
-    const emergencyFund = state.assets.find(a => a.name === 'Emergency Fund')?.currentValue || 0;
+    const emergencyFund = state.goals.find(g => g.name === 'Emergency Fund')?.saved || 0;
     const monthlyNeeds = state.categories.filter(c => c.classification === 'Need').reduce((s, c) => s + getBudgetAmount(c), 0);
     const emerMonths = monthlyNeeds > 0 ? emergencyFund / monthlyNeeds : 0;
     if (emerMonths < 6) {
@@ -2394,6 +2452,18 @@ function renderChartsForTab(tabName) {
             datasets: [
                 { label: 'Budget', data: state.categories.slice(0, 10).map(c => getBudgetAmount(c)), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 6 },
                 { label: 'Actual', data: state.categories.slice(0, 10).map(c => getActualSpending(c.name, currentMonth)), backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 6 }
+            ]
+        }, { plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { y: { ticks: { color: '#94a3b8', callback: v => 'Rs.' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#94a3b8' }, grid: { display: false } } } });
+
+        // Income vs Expense vs Savings Trend: all three, month by month, in true chronological
+        // order (not alphabetical), so the shape of each line is trustworthy.
+        const savingsSeries = getMonthlyFinanceSeries();
+        renderChart('savingsTrendChart', 'line', {
+            labels: savingsSeries.map(m => m.label),
+            datasets: [
+                { label: 'Income', data: savingsSeries.map(m => m.income), borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.08)', fill: false, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#6366f1' },
+                { label: 'Expense', data: savingsSeries.map(m => m.expenses), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', fill: false, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#ef4444' },
+                { label: 'Savings', data: savingsSeries.map(m => m.savings), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)', fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#10b981' }
             ]
         }, { plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { y: { ticks: { color: '#94a3b8', callback: v => 'Rs.' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#94a3b8' }, grid: { display: false } } } });
     }
@@ -3071,7 +3141,7 @@ function resetBudgetDefaults() {
 
 function resetAll() {
     if (!confirm('WARNING: Delete ALL data?')) return;
-    state = { salary: 92000, categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)), categoryConfig: JSON.parse(JSON.stringify(DEFAULT_CATEGORY_CONFIG)), transactions: JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS)), loans: JSON.parse(JSON.stringify(DEFAULT_LOANS)), goals: JSON.parse(JSON.stringify(DEFAULT_GOALS)), assets: JSON.parse(JSON.stringify(DEFAULT_ASSETS)), recurringItems: JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS)), salaryHistory: [] };
+    state = { salary: 92000, openingSavings: 0, openingInvestments: 0, categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)), categoryConfig: JSON.parse(JSON.stringify(DEFAULT_CATEGORY_CONFIG)), transactions: JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS)), loans: JSON.parse(JSON.stringify(DEFAULT_LOANS)), goals: JSON.parse(JSON.stringify(DEFAULT_GOALS)), assets: JSON.parse(JSON.stringify(DEFAULT_ASSETS)), recurringItems: JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS)), salaryHistory: [] };
     saveState(); renderAll(); showToast('All data reset', 'info');
 }
 
@@ -3829,25 +3899,6 @@ function renderBudgetUtilization() {
     container.innerHTML = utilHTML;
 }
 
-function switchDashboardOverview(section) {
-    currentDashboardOverview = section;
-    document.querySelectorAll('[data-db-overview-tab]').forEach(btn => btn.classList.remove('active'));
-    const btn = document.querySelector('[data-db-overview-tab="' + section + '"]');
-    if (btn) btn.classList.add('active');
-
-    ['monthly', 'yearly'].forEach(s => {
-        const el = document.getElementById('dbOverviewSection-' + s);
-        if (el) el.style.display = (s === section) ? 'block' : 'none';
-    });
-
-    if (section === 'monthly') renderDashboardMonthlyOverview();
-    else renderDashboardYearlyOverview();
-}
-
-function renderDashboardMonthlyOverview() {
-    renderMonthlyOverview('dbMonthlyOverviewSelect', 'dbMonthlyOverviewContent');
-}
-
 function renderDashboardYearlyOverview() {
     renderYearlyOverview('dbYearlyOverviewSelect', 'dbYearlyOverviewContent');
 }
@@ -3875,42 +3926,12 @@ function populateOverviewSelectors() {
         if (prevVal && months.includes(prevVal)) budgetMonthSelect.value = prevVal;
     }
 
-    const dbMonthSelect = document.getElementById('dbMonthlyOverviewSelect');
-    const dbYearForMonthSelect = document.getElementById('dbMonthlyOverviewYearSelect');
-    if (dbYearForMonthSelect && dbMonthSelect) {
-        const prevYearVal = dbYearForMonthSelect.value;
-        dbYearForMonthSelect.innerHTML = years.map(y => '<option value="' + y + '">' + y + '</option>').join('');
-        const defaultYear = (prevYearVal && years.map(String).includes(prevYearVal)) ? prevYearVal : (years[years.length - 1] || new Date().getFullYear());
-        dbYearForMonthSelect.value = defaultYear;
-        populateDbMonthlyMonthOptions(defaultYear);
-    }
     const dbYearSelect = document.getElementById('dbYearlyOverviewSelect');
     if (dbYearSelect) {
         const prevVal = dbYearSelect.value;
         dbYearSelect.innerHTML = '<option value="">Select Year</option>' + years.map(y => '<option value="' + y + '">' + y + '</option>').join('');
         dbYearSelect.value = (prevVal && years.map(String).includes(prevVal)) ? prevVal : (years[years.length - 1] || '');
     }
-}
-
-// Rebuild the Dashboard Monthly Overview's Month dropdown to only list the 12 months of the given year
-function populateDbMonthlyMonthOptions(year) {
-    const dbMonthSelect = document.getElementById('dbMonthlyOverviewSelect');
-    if (!dbMonthSelect) return;
-    const y = parseInt(year) || new Date().getFullYear();
-    const monthsInYear = Array.from({ length: 12 }, (_, m) => new Date(y, m, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }));
-    const prevVal = dbMonthSelect.value;
-    dbMonthSelect.innerHTML = '<option value="">Select Month</option>' + monthsInYear.map(m => '<option value="' + m + '">' + m + '</option>').join('');
-    const currentMonthStr = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-    let defaultMonth = '';
-    if (prevVal && monthsInYear.includes(prevVal)) defaultMonth = prevVal;
-    else if (monthsInYear.includes(currentMonthStr)) defaultMonth = currentMonthStr;
-    dbMonthSelect.value = defaultMonth;
-}
-
-function onDbMonthlyOverviewYearChange() {
-    const yearSelect = document.getElementById('dbMonthlyOverviewYearSelect');
-    populateDbMonthlyMonthOptions(yearSelect ? yearSelect.value : '');
-    renderDashboardMonthlyOverview();
 }
 
 function exportToCSV() {
