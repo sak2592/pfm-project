@@ -1746,6 +1746,9 @@ function regenerateLoanInstances(loanId) {
     state.transactions = state.transactions.filter(t => t.loanId !== loanId);
     const loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
+    // A Completed/Inactive loan (outstanding paid off) should not keep adding EMI transactions -
+    // the filter above already wiped any it had, so simply stop here without regenerating.
+    if (isLoanCompleted(loan)) return;
 
     const today = new Date();
     const start = parseDate(loan.startDate);
