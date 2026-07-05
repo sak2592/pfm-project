@@ -326,6 +326,13 @@
                     <div class="card-value" id="dbIncome">Rs.0</div>
                     <div class="card-change" id="dbIncomePct"><i class="fas fa-chart-line"></i> 100% base salary</div>
                 </div>
+                <div class="dash-card budget" id="dbPureAvgCard" title="Average monthly expense excluding EMI and Investment — your 'pure' lifestyle spend">
+                    <div class="card-icon"><i class="fas fa-hand-holding-dollar"></i></div>
+                    <div class="card-label">Avg Pure Expense / mo</div>
+                    <div class="card-value" id="dbPureAvgTotal">Rs.0</div>
+                    <div class="card-change" id="dbPureAvgPct">0% of avg income</div>
+                    <div class="card-sub" id="dbPureAvgSub">Excl. EMI &amp; Investment</div>
+                </div>
                 <div class="dash-card savings">
                     <div class="card-icon"><i class="fas fa-piggy-bank"></i></div>
                     <div class="card-label">Total Savings</div>
@@ -362,13 +369,6 @@
                     <div class="card-value" id="dbEmergency">0 months</div>
                     <div class="card-sub">Covered at current monthly expense</div>
                 </div>
-                <div class="dash-card budget" id="dbPureAvgCard" title="Average monthly expense excluding EMI and Investment — your 'pure' lifestyle spend">
-                    <div class="card-icon"><i class="fas fa-wallet"></i></div>
-                    <div class="card-label">Avg Pure Expense / mo</div>
-                    <div class="card-value" id="dbPureAvgTotal">Rs.0</div>
-                    <div class="card-change" id="dbPureAvgPct">0% of avg income</div>
-                    <div class="card-sub" id="dbPureAvgSub">Excl. EMI &amp; Investment</div>
-                </div>
                 <div class="dash-card" style="border-color: var(--pink);">
                     <div class="card-icon" style="background: rgba(236,72,153,0.15); color: var(--pink);"><i class="fas fa-umbrella"></i></div>
                     <div class="card-label">Insurance - Yearly Total</div>
@@ -393,14 +393,19 @@
             </div>
             
             <div class="panel">
-                <div class="panel-header"><div class="panel-title"><i class="fas fa-calendar"></i> Yearly Overview</div></div>
-                <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
-                    <select id="dbYearlyOverviewSelect" class="config-input" onchange="renderDashboardYearlyOverview()" style="width: auto; min-width: 180px;">
-                        <option value="">Select Year</option>
-                    </select>
+                <div class="panel-header" style="cursor:pointer;" onclick="toggleYearlyOverview()">
+                    <div class="panel-title"><i class="fas fa-calendar"></i> Yearly Overview</div>
+                    <div><i class="fas fa-chevron-down" id="dbYearlyOverviewChevron"></i></div>
                 </div>
-                <div id="dbYearlyOverviewContent">
-                    <div class="empty-state"><i class="fas fa-calendar"></i><p>Select a year to view overview</p></div>
+                <div id="dbYearlyOverviewBody" style="display:none;">
+                    <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
+                        <select id="dbYearlyOverviewSelect" class="config-input" onchange="renderDashboardYearlyOverview()" style="width: auto; min-width: 180px;">
+                            <option value="">Select Year</option>
+                        </select>
+                    </div>
+                    <div id="dbYearlyOverviewContent">
+                        <div class="empty-state"><i class="fas fa-calendar"></i><p>Select a year to view overview</p></div>
+                    </div>
                 </div>
             </div>
 
@@ -1154,6 +1159,14 @@ function loadData() {
             if (!state.loans) state.loans = JSON.parse(JSON.stringify(DEFAULT_LOANS));
             state.loans.forEach(l => { if (!l.prepayments) l.prepayments = []; });
             if (!state.goals) state.goals = JSON.parse(JSON.stringify(DEFAULT_GOALS));
+            // Fix up goals saved before icon auto-detection existed (or manually added with the
+            // generic bullseye icon) — reassign a proper icon based on the goal name.
+            state.goals.forEach(g => {
+                if (!g.icon || g.icon === 'fa-bullseye') {
+                    const betterIcon = getDefaultGoalIcon(g.name);
+                    if (betterIcon !== 'fa-bullseye') g.icon = betterIcon;
+                }
+            });
             if (!state.assets) state.assets = JSON.parse(JSON.stringify(DEFAULT_ASSETS));
             if (!state.recurringItems) state.recurringItems = JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS));
             if (!state.salaryHistory) state.salaryHistory = [];
@@ -1313,6 +1326,12 @@ loadData = async function() {
             if (!state.loans) state.loans = JSON.parse(JSON.stringify(DEFAULT_LOANS));
             state.loans.forEach(l => { if (!l.prepayments) l.prepayments = []; });
             if (!state.goals) state.goals = JSON.parse(JSON.stringify(DEFAULT_GOALS));
+            state.goals.forEach(g => {
+                if (!g.icon || g.icon === 'fa-bullseye') {
+                    const betterIcon = getDefaultGoalIcon(g.name);
+                    if (betterIcon !== 'fa-bullseye') g.icon = betterIcon;
+                }
+            });
             if (!state.assets) state.assets = JSON.parse(JSON.stringify(DEFAULT_ASSETS));
             if (!state.recurringItems) state.recurringItems = JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS));
             try { localStorage.setItem('pfms_v3', JSON.stringify(state)); } catch(e) {}
@@ -1624,10 +1643,22 @@ function renderDashboard() {
     const totalLiabilities = state.loans.reduce((s, l) => s + (l.outstanding || 0), 0);
     const netWorth = totalAssets - totalLiabilities;
 
-    const monthlyExpenses = state.categories
+    // "Months covered" needs a monthly expense figure. Prefer the Admin > Budget target amounts;
+    // but if those haven't been configured (sum to 0), fall back to the actual all-time average
+    // monthly expense from logged transactions, so the Emergency Fund card doesn't get stuck at
+    // 0.0 months just because budget percentages were never set up.
+    const budgetBasedMonthlyExpenses = state.categories
         .filter(c => c.classification === 'Need' || c.classification === 'Want')
         .reduce((s, c) => s + getBudgetAmount(c), 0);
-    const emergencyFund = state.goals.find(g => g.name === 'Emergency Fund')?.saved || 0;
+    const allExpenseTxForEF = state.transactions.filter(t => t.type === 'Expense');
+    const expenseMonthsSeenForEF = [...new Set(allExpenseTxForEF.map(t => getMonthYear(t.date)))].length || 1;
+    const actualAvgMonthlyExpense = allExpenseTxForEF.reduce((s, t) => s + t.amount, 0) / expenseMonthsSeenForEF;
+    const monthlyExpenses = budgetBasedMonthlyExpenses > 0 ? budgetBasedMonthlyExpenses : actualAvgMonthlyExpense;
+    // Sum every goal named "Emergency Fund" (not just the first match) — if the person added a new
+    // goal instead of editing the default one, both are counted rather than the new one being ignored.
+    const emergencyFund = state.goals
+        .filter(g => (g.name || '').trim().toLowerCase() === 'emergency fund')
+        .reduce((s, g) => s + (g.saved || 0), 0);
     const emergencyMonths = monthlyExpenses > 0 ? emergencyFund / monthlyExpenses : 0;
 
     // ===== Avg Pure Expense / mo — all-time average monthly spend excluding EMI (loan-linked)
@@ -2289,7 +2320,9 @@ function renderInsights() {
     const annualSavings = savings * 12;
     recs.push({ icon: 'fa-calendar-check', title: 'Annual Projection', text: 'Projected annual savings at current rate: ' + fmt(annualSavings) + '.', tag: 'Projection', tagClass: 'info' });
 
-    const emergencyFund = state.goals.find(g => g.name === 'Emergency Fund')?.saved || 0;
+    const emergencyFund = state.goals
+        .filter(g => (g.name || '').trim().toLowerCase() === 'emergency fund')
+        .reduce((s, g) => s + (g.saved || 0), 0);
     const monthlyNeeds = state.categories.filter(c => c.classification === 'Need').reduce((s, c) => s + getBudgetAmount(c), 0);
     const emerMonths = monthlyNeeds > 0 ? emergencyFund / monthlyNeeds : 0;
     if (emerMonths < 6) {
@@ -2516,6 +2549,15 @@ function renderChart(canvasId, type, data, options) {
     } catch (e) { console.error('Chart error for ' + canvasId, e); }
 }
 
+function toggleYearlyOverview() {
+    const body = document.getElementById('dbYearlyOverviewBody');
+    const chevron = document.getElementById('dbYearlyOverviewChevron');
+    if (!body) return;
+    const isHidden = body.style.display === 'none';
+    body.style.display = isHidden ? '' : 'none';
+    if (chevron) chevron.className = 'fas ' + (isHidden ? 'fa-chevron-up' : 'fa-chevron-down');
+}
+
 function switchTab(tabName) {
     currentTab = tabName;
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -2668,6 +2710,83 @@ function saveLoan() {
     showToast('Loan saved!', 'success');
 }
 
+function getExpenseCategoryIcon(name) {
+    const n = (name || '').trim().toLowerCase();
+    const rules = [
+        { icon: 'fa-hand-holding-dollar', keywords: ['emi', 'loan'] },
+        { icon: 'fa-house', keywords: ['house rent', 'housing', 'rent'] },
+        { icon: 'fa-cart-shopping', keywords: ['grocery', 'groceries', 'milk', 'vegetable', 'fruit', 'staple'] },
+        { icon: 'fa-bolt', keywords: ['electricity', 'power bill'] },
+        { icon: 'fa-wifi', keywords: ['internet', 'broadband'] },
+        { icon: 'fa-fire', keywords: ['gas', 'cylinder'] },
+        { icon: 'fa-droplet', keywords: ['water'] },
+        { icon: 'fa-mobile-screen', keywords: ['mobile', 'recharge', 'phone', 'gadget', 'electronics'] },
+        { icon: 'fa-broom', keywords: ['maid', 'cleaning', 'housekeeping'] },
+        { icon: 'fa-shield-halved', keywords: ['insurance'] },
+        { icon: 'fa-graduation-cap', keywords: ['school', 'education', 'tuition'] },
+        { icon: 'fa-heart-pulse', keywords: ['medical', 'health', 'doctor', 'hospital', 'medicine', 'consultation'] },
+        { icon: 'fa-gas-pump', keywords: ['fuel', 'petrol', 'diesel'] },
+        { icon: 'fa-tv', keywords: ['streaming', 'ott', 'subscription'] },
+        { icon: 'fa-plane', keywords: ['travel', 'flight', 'hotel', 'vacation', 'trip', 'holiday'] },
+        { icon: 'fa-utensils', keywords: ['restaurant', 'dine', 'food delivery', 'food'] },
+        { icon: 'fa-bag-shopping', keywords: ['shopping', 'clothing', 'wear', 'apparel'] },
+        { icon: 'fa-film', keywords: ['entertainment', 'movie', 'event'] },
+        { icon: 'fa-gift', keywords: ['gift', 'birthday', 'festival'] },
+        { icon: 'fa-spa', keywords: ['personal care', 'spa'] },
+        { icon: 'fa-file-invoice-dollar', keywords: ['bill'] },
+        { icon: 'fa-chart-line', keywords: ['investment', 'mutual fund', 'sip'] },
+        { icon: 'fa-ellipsis', keywords: ['miscellaneous', 'other'] },
+    ];
+    for (const rule of rules) {
+        if (rule.keywords.some(k => n.includes(k))) return rule.icon;
+    }
+    return 'fa-tag';
+}
+
+function getInvestmentCategoryIcon(name) {
+    const n = (name || '').trim().toLowerCase();
+    const rules = [
+        { icon: 'fa-chart-line', keywords: ['mutual fund', 'sip', 'lumpsum', 'wealth'] },
+        { icon: 'fa-chart-simple', keywords: ['stock', 'equity', 'etf'] },
+        { icon: 'fa-piggy-bank', keywords: ['ppf', 'annual deposit'] },
+        { icon: 'fa-user-shield', keywords: ['nps', 'tier 1', 'tier 2'] },
+        { icon: 'fa-shield-halved', keywords: ['emergency', 'insurance'] },
+        { icon: 'fa-coins', keywords: ['gold'] },
+        { icon: 'fa-building-columns', keywords: ['fd', 'fixed deposit', 'bank'] },
+        { icon: 'fa-file-contract', keywords: ['bond'] },
+        { icon: 'fa-bitcoin-sign', keywords: ['crypto', 'bitcoin'] },
+        { icon: 'fa-house-chimney', keywords: ['real estate', 'property'] },
+        { icon: 'fa-receipt', keywords: ['elss'] },
+    ];
+    for (const rule of rules) {
+        if (rule.keywords.some(k => n.includes(k))) return rule.icon;
+    }
+    return 'fa-chart-pie';
+}
+
+function getDefaultGoalIcon(name) {
+    const n = (name || '').trim().toLowerCase();
+    const rules = [
+        { icon: 'fa-shield-halved', keywords: ['emergency'] },
+        { icon: 'fa-house-chimney', keywords: ['house', 'home', 'property', 'flat', 'apartment'] },
+        { icon: 'fa-car', keywords: ['car', 'vehicle', 'bike', 'scooter'] },
+        { icon: 'fa-graduation-cap', keywords: ['education', 'school', 'college', 'study', 'studies', 'tuition'] },
+        { icon: 'fa-ring', keywords: ['wedding', 'marriage'] },
+        { icon: 'fa-plane', keywords: ['travel', 'vacation', 'trip', 'holiday'] },
+        { icon: 'fa-heart-pulse', keywords: ['health', 'medical', 'hospital'] },
+        { icon: 'fa-umbrella-beach', keywords: ['retirement', 'retire'] },
+        { icon: 'fa-hand-holding-dollar', keywords: ['loan', 'debt', 'payoff', 'repay'] },
+        { icon: 'fa-chart-line', keywords: ['investment', 'invest', 'wealth'] },
+        { icon: 'fa-mobile-screen', keywords: ['gadget', 'phone', 'laptop', 'electronics'] },
+        { icon: 'fa-gift', keywords: ['gift'] },
+        { icon: 'fa-baby', keywords: ['baby', 'child', 'kid'] },
+    ];
+    for (const rule of rules) {
+        if (rule.keywords.some(k => n.includes(k))) return rule.icon;
+    }
+    return 'fa-bullseye';
+}
+
 function saveGoal() {
     const name = document.getElementById('goalName')?.value.trim();
     const target = parseFloat(document.getElementById('goalTarget')?.value);
@@ -2685,7 +2804,7 @@ function saveGoal() {
             state.goals[idx] = { id: editingId, name, icon: existingIcon, target, saved, monthly, targetDate, priority, description };
         }
     } else {
-        state.goals.push({ id: 'goal_' + Date.now(), name, icon: 'fa-bullseye', target, saved, monthly, targetDate, priority, description });
+        state.goals.push({ id: 'goal_' + Date.now(), name, icon: getDefaultGoalIcon(name), target, saved, monthly, targetDate, priority, description });
     }
     saveState(); renderAll(); closeModal();
     showToast(editingId ? 'Goal updated!' : 'Goal added!', 'success');
@@ -3467,16 +3586,10 @@ function renderExpense() {
             breakdownGrid.innerHTML = '<div class="empty-state"><i class="fas fa-chart-pie"></i><p>No expenses for the selected filter</p></div>';
         } else {
             const colorClasses = ['loan', 'emi', 'health', 'budget', 'networth', 'savings', 'salary'];
-            const iconMap = { 'Food': 'fa-utensils', 'Groceries': 'fa-cart-shopping', 'Rent': 'fa-house', 'Housing': 'fa-house',
-                'Transport': 'fa-car', 'Transportation': 'fa-car', 'Entertainment': 'fa-film', 'Shopping': 'fa-bag-shopping',
-                'Utilities': 'fa-bolt', 'Bills': 'fa-file-invoice-dollar', 'Health': 'fa-heart-pulse', 'Medical': 'fa-heart-pulse',
-                'Travel': 'fa-plane', 'Education': 'fa-graduation-cap', 'Insurance': 'fa-shield-halved',
-                'EMI': 'fa-hand-holding-dollar', 'Loan': 'fa-hand-holding-dollar', 'Investment': 'fa-chart-line',
-                'Subscription': 'fa-rotate', 'Personal Care': 'fa-spa', 'Gifts': 'fa-gift', 'Fuel': 'fa-gas-pump' };
             breakdownGrid.innerHTML = catEntries.map(([cat, amt], idx) => {
                 const pct = baseFilteredTotal > 0 ? (amt / baseFilteredTotal) * 100 : 0;
                 const colorClass = colorClasses[idx % colorClasses.length];
-                const icon = iconMap[cat] || 'fa-tag';
+                const icon = getExpenseCategoryIcon(cat);
                 const isActive = cat === filterCat;
                 return '<div class="dash-card ' + colorClass + '" style="cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterExpenseByCategoryIndex(' + idx + ')" title="Click to view subcategories and transactions for this category"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div>' + (isActive ? '<div class="card-sub"><strong style="color:var(--primary);">selected</strong></div>' : '') + '</div>';
             }).join('');
@@ -3514,7 +3627,7 @@ function renderExpense() {
                 const isActive = key === expenseSubcatFilterKey;
                 const colorClass = colorClasses[idx % colorClasses.length];
                 return '<div class="dash-card ' + colorClass + '" style="cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterExpenseBySubcategoryIndex(' + idx + ')" title="Click to filter Expense History to this subcategory">' +
-                    '<div class="card-icon"><i class="fas fa-diagram-project"></i></div>' +
+                    '<div class="card-icon"><i class="fas ' + getExpenseCategoryIcon(s.category) + '"></i></div>' +
                     '<div class="card-label">' + s.subcategory + '</div>' +
                     '<div class="card-value">' + fmt(s.amount) + '</div>' +
                     '<div class="card-change"><i class="fas fa-receipt"></i> ' + s.count + ' transaction' + (s.count === 1 ? '' : 's') + '</div>' +
@@ -3674,14 +3787,10 @@ function renderInvestment() {
             breakdownGrid.innerHTML = '<div class="empty-state"><i class="fas fa-chart-pie"></i><p>No investments for the selected filter</p></div>';
         } else {
             const colorClasses = ['budget', 'savings', 'networth', 'health', 'emi', 'salary', 'loan'];
-            const iconMap = { 'Mutual Fund': 'fa-chart-line', 'Mutual Funds': 'fa-chart-line', 'SIP': 'fa-rotate', 'Stocks': 'fa-chart-simple',
-                'Equity': 'fa-chart-simple', 'FD': 'fa-building-columns', 'Fixed Deposit': 'fa-building-columns', 'PPF': 'fa-piggy-bank',
-                'Gold': 'fa-coins', 'Bonds': 'fa-file-contract', 'Crypto': 'fa-bitcoin-sign', 'NPS': 'fa-user-shield',
-                'Insurance': 'fa-shield-halved', 'Real Estate': 'fa-house-chimney', 'ELSS': 'fa-receipt' };
             breakdownGrid.innerHTML = catEntries.map(([cat, amt], idx) => {
                 const pct = filteredTotal > 0 ? (amt / filteredTotal) * 100 : 0;
                 const colorClass = colorClasses[idx % colorClasses.length];
-                const icon = iconMap[cat] || 'fa-chart-pie';
+                const icon = getInvestmentCategoryIcon(cat);
                 return '<div class="dash-card ' + colorClass + '"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div></div>';
             }).join('');
         }
@@ -4326,4 +4435,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 </body>
 </html>
-
