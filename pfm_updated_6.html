@@ -2471,8 +2471,28 @@ function regenerateRuleInstances(ruleId) {
     }
 }
 
+// One-time self-heal for data created under the old array-length ID scheme: if two Fixed Items
+// ended up sharing the same ID (possible after a delete + add), regenerateAllRecurring would find
+// the "first" one twice and push its transactions twice - which is exactly what showed up as the
+// same Fixed Expense (e.g. House Rent) appearing more than once in the same month. Re-keying the
+// later duplicate to a fresh ID fixes both the double-push and the silently-dropped rule.
+function repairDuplicateRecurringIds() {
+    if (!state.recurringItems) return false;
+    const seen = new Set();
+    let changed = false;
+    state.recurringItems.forEach(r => {
+        if (seen.has(r.id)) {
+            r.id = nextRecurringId();
+            changed = true;
+        }
+        seen.add(r.id);
+    });
+    return changed;
+}
+
 function regenerateAllRecurring() {
     if (!state.recurringItems) state.recurringItems = [];
+    if (repairDuplicateRecurringIds()) saveState();
     state.recurringItems.forEach(r => regenerateRuleInstances(r.id));
 }
 
@@ -2531,6 +2551,15 @@ function onRecCategoryChange(preselectSub) {
     if (preselectSub && subs.includes(preselectSub)) subSelect.value = preselectSub;
 }
 
+// Array-length-based IDs break the moment an item in the middle gets deleted (the next "Add" can
+// land on an ID that still belongs to a surviving item). Basing it on the highest ID seen so far
+// guarantees a fresh ID is always used, even after deletions.
+function nextRecurringId() {
+    const nums = (state.recurringItems || []).map(r => parseInt(String(r.id || '').replace(/\D/g, ''), 10) || 0);
+    const max = nums.length ? Math.max(...nums) : 0;
+    return 'REC' + String(max + 1).padStart(5, '0');
+}
+
 function saveRecurringItem() {
     const category = document.getElementById('recCategory')?.value.trim();
     const subcategory = document.getElementById('recSubcategory')?.value.trim();
@@ -2554,7 +2583,7 @@ function saveRecurringItem() {
     const classification = type === 'Investment' ? 'Investment' : 'Need';
     const existing = editingId ? state.recurringItems.find(r => r.id === editingId) : null;
     const rule = {
-        id: editingId || ('REC' + String(state.recurringItems.length + 1).padStart(5, '0')),
+        id: editingId || nextRecurringId(),
         type, category, subcategory, classification, amount, frequency, startDate, endDate,
         escalationPct: type === 'Investment' ? escalationPct : 0,
         payment, bank, member, vendor, notes,
