@@ -1761,11 +1761,14 @@ function regenerateLoanInstances(loanId) {
     let cursor = new Date(start);
     let n = 0;
     while (cursor <= today && n < (loan.tenure || Infinity)) {
-        // Only log the EMI for months that actually have income recorded - a month with zero income
-        // means nothing was earned/logged for it, so we don't assume the EMI got paid either.
+        // Only log the EMI for months that have a Monthly Salary entry logged under the Salary
+        // category - other income (interest, bonus, etc.) alone doesn't count, and a month with
+        // no salary logged means we don't assume the EMI got paid either.
         const cursorMonthKey = getMonthYear(fmtDateStr(cursor));
-        const monthIncome = state.transactions.filter(t => t.type === 'Income' && getMonthYear(t.date) === cursorMonthKey).reduce((s, t) => s + t.amount, 0);
-        if (monthIncome > 0) {
+        const monthSalary = state.transactions
+            .filter(t => t.type === 'Income' && t.category === 'Salary' && t.subcategory === 'Monthly Salary' && getMonthYear(t.date) === cursorMonthKey)
+            .reduce((s, t) => s + t.amount, 0);
+        if (monthSalary > 0) {
             state.transactions.push({
                 id: loan.id + '_emi_' + fmtDateStr(cursor).replace(/-/g, ''),
                 date: fmtDateStr(cursor),
