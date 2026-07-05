@@ -1758,21 +1758,27 @@ function regenerateLoanInstances(loanId) {
     let cursor = new Date(start);
     let n = 0;
     while (cursor <= today && n < (loan.tenure || Infinity)) {
-        state.transactions.push({
-            id: loan.id + '_emi_' + fmtDateStr(cursor).replace(/-/g, ''),
-            date: fmtDateStr(cursor),
-            type: 'Expense',
-            category: loan.name,
-            subcategory: 'EMI',
-            classification: 'Need',
-            amount: loan.emi,
-            payment: 'Auto Debit',
-            bank: loan.lender,
-            member: 'Self',
-            vendor: loan.lender,
-            notes: loan.name + ' EMI (' + fmtDateStr(cursor) + ')',
-            loanId: loan.id
-        });
+        // Only log the EMI for months that actually have income recorded - a month with zero income
+        // means nothing was earned/logged for it, so we don't assume the EMI got paid either.
+        const cursorMonthKey = getMonthYear(fmtDateStr(cursor));
+        const monthIncome = state.transactions.filter(t => t.type === 'Income' && getMonthYear(t.date) === cursorMonthKey).reduce((s, t) => s + t.amount, 0);
+        if (monthIncome > 0) {
+            state.transactions.push({
+                id: loan.id + '_emi_' + fmtDateStr(cursor).replace(/-/g, ''),
+                date: fmtDateStr(cursor),
+                type: 'Expense',
+                category: loan.name,
+                subcategory: 'EMI',
+                classification: 'Need',
+                amount: loan.emi,
+                payment: 'Auto Debit',
+                bank: loan.lender,
+                member: 'Self',
+                vendor: loan.lender,
+                notes: loan.name + ' EMI (' + fmtDateStr(cursor) + ')',
+                loanId: loan.id
+            });
+        }
         cursor = advanceByFrequency(cursor, 'Monthly');
         n++;
     }
