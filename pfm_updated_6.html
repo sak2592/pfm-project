@@ -294,9 +294,6 @@
             <button class="nav-tab" onclick="switchTab('transactions')" data-tab="transactions">
                 <i class="fas fa-list"></i> Transactions
             </button>
-            <button class="nav-tab" onclick="switchTab('budget-util')" data-tab="budget-util">
-                <i class="fas fa-list-check"></i> Budget Utilization
-            </button>
             <button class="nav-tab" onclick="switchTab('loans')" data-tab="loans">
                 <i class="fas fa-landmark"></i> Loans
             </button>
@@ -577,19 +574,6 @@
             </div>
         </div>
 
-        <!-- BUDGET UTILIZATION TAB -->
-        <div class="tab-pane" id="tab-budget-util">
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title"><i class="fas fa-list-check"></i> Budget Utilization by Category</div>
-                    <select id="budgetUtilMonthSelect" class="config-input" onchange="renderBudgetUtilization()" style="width: auto; min-width: 200px;">
-                        <option value="">Current Month</option>
-                    </select>
-                </div>
-                <div id="budgetUtilizationContent"></div>
-            </div>
-        </div>
-
         <!-- INCOME TAB -->
         <div class="tab-pane" id="tab-income">
             <div class="panel">
@@ -679,9 +663,6 @@
                 <button class="nav-tab" onclick="switchAdminSection('fixedexpense')" data-admin-tab="fixedexpense">
                     <i class="fas fa-arrows-rotate"></i> Fixed Expenses
                 </button>
-                <button class="nav-tab" onclick="switchAdminSection('budget')" data-admin-tab="budget">
-                    <i class="fas fa-sliders"></i> Budget Configuration
-                </button>
                 <button class="nav-tab" onclick="switchAdminSection('networth')" data-admin-tab="networth">
                     <i class="fas fa-gem"></i> Net Worth
                 </button>
@@ -719,36 +700,6 @@
                         <table>
                             <thead><tr><th>Category</th><th>Amount</th><th>Frequency</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
                             <tbody id="recurringExpenseTable"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="admin-section" id="adminSection-budget" style="display:none;">
-                <div class="panel">
-                    <div class="panel-header">
-                        <div class="panel-title"><i class="fas fa-sliders"></i> Budget Configuration</div>
-                        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="btn btn-success" onclick="saveBudgetConfig()"><i class="fas fa-save"></i> Save</button>
-                            <button class="btn btn-secondary" onclick="resetBudgetDefaults()"><i class="fas fa-rotate-left"></i> Reset</button>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 16px; padding: 14px 18px; background: rgba(99,102,241,0.05); border-radius: 12px; border: 1px solid rgba(99,102,241,0.15); color: var(--text-muted); font-size: 0.85rem;">
-                        <i class="fas fa-circle-info" style="color: var(--primary);"></i>
-                        This list mirrors the Expense &amp; Investment categories from the <a href="#" onclick="switchAdminSection('category'); return false;" style="color:var(--primary);">Category &amp; Subcategory</a> tab. To add a category here, add it there first; deleting a row here removes it from both places.
-                    </div>
-                    <div style="margin-bottom: 16px; padding: 14px 18px; background: rgba(99,102,241,0.05); border-radius: 12px; border: 1px solid rgba(99,102,241,0.15);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                            <div><span style="color:var(--text-muted); font-size:0.85rem;">Total Target %: </span><strong id="totalTargetPct" style="font-size:1.1rem;">0%</strong><span id="targetWarning" style="color:var(--danger); font-size:0.85rem; margin-left:10px; display:none;"><i class="fas fa-triangle-exclamation"></i> Exceeds 100%</span></div>
-                            <div><span style="color:var(--text-muted); font-size:0.85rem;">Unallocated: </span><strong id="unallocatedPct" style="font-size:1.1rem; color:var(--secondary);">0%</strong></div>
-                            <div><span style="color:var(--text-muted); font-size:0.85rem;">50/30/20 Rule: </span><strong id="rule503020" style="font-size:1.1rem;">Needs 0% | Wants 0% | Invest 0%</strong></div>
-                        </div>
-                        <div class="progress-bg" style="margin-top:10px; height:10px;"><div class="progress-fill" id="targetProgressBar" style="width:0%; background: linear-gradient(90deg, var(--primary), var(--purple));"></div></div>
-                    </div>
-                    <div style="overflow-x:auto;">
-                        <table class="config-table">
-                            <thead><tr><th>Category</th><th>Priority</th><th>Target %</th><th>Budget Rs.</th><th>Actual Rs.</th><th>Remaining Rs.</th><th>Used %</th><th>Status</th><th>Actions</th></tr></thead>
-                            <tbody id="budgetConfigTable"></tbody>
                         </table>
                     </div>
                 </div>
@@ -2529,14 +2480,13 @@ function switchAdminSection(section) {
     const btn = document.querySelector('[data-admin-tab="' + section + '"]');
     if (btn) btn.classList.add('active');
 
-    ['category', 'fixedexpense', 'budget', 'networth'].forEach(s => {
+    ['category', 'fixedexpense', 'networth'].forEach(s => {
         const el = document.getElementById('adminSection-' + s);
         if (el) el.style.display = (s === section) ? 'block' : 'none';
     });
 
     if (section === 'category') renderCategoryConfig();
     else if (section === 'fixedexpense') renderRecurringExpense();
-    else if (section === 'budget') renderBudgetConfig();
     else if (section === 'networth') { renderNetWorth(); setTimeout(renderNetWorthCharts, 100); }
 }
 
@@ -2573,9 +2523,6 @@ function switchTab(tabName) {
         renderExpense();
     } else if (tabName === 'investment') {
         renderInvestment();
-    } else if (tabName === 'budget-util') {
-        populateOverviewSelectors();
-        renderBudgetUtilization();
     } else if (tabName === 'admin') {
         switchAdminSection(currentAdminSection);
     } else {
