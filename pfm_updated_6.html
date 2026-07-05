@@ -1059,9 +1059,9 @@ const DEFAULT_CATEGORY_CONFIG = [
 ];
 
 const DEFAULT_LOANS = [
-    { id: 'loan_1', name: 'Home Loan', lender: 'HDFC Bank', principal: 7500000, outstanding: 6260126, rate: 8.5, tenure: 240, emi: 65087, startDate: '2020-01-01', type: 'Mortgage', autoOutstanding: true },
-    { id: 'loan_2', name: 'Laptop EMI', lender: 'Bajaj Finance', principal: 120000, outstanding: 45000, rate: 0, tenure: 15, emi: 8000, startDate: '2024-01-01', type: 'Consumer', autoOutstanding: true },
-    { id: 'loan_3', name: 'Phone EMI', lender: 'HDFC Bank', principal: 80000, outstanding: 20000, rate: 0, tenure: 15, emi: 5333, startDate: '2024-06-01', type: 'Consumer', autoOutstanding: true }
+    { id: 'loan_1', name: 'Home Loan', lender: 'HDFC Bank', principal: 7500000, outstanding: 6260126, rate: 8.5, tenure: 240, emi: 65087, startDate: '2020-01-01', type: 'Mortgage', autoOutstanding: true, prepayments: [] },
+    { id: 'loan_2', name: 'Laptop EMI', lender: 'Bajaj Finance', principal: 120000, outstanding: 45000, rate: 0, tenure: 15, emi: 8000, startDate: '2024-01-01', type: 'Consumer', autoOutstanding: true, prepayments: [] },
+    { id: 'loan_3', name: 'Phone EMI', lender: 'HDFC Bank', principal: 80000, outstanding: 20000, rate: 0, tenure: 15, emi: 5333, startDate: '2024-06-01', type: 'Consumer', autoOutstanding: true, prepayments: [] }
 ];
 
 const DEFAULT_GOALS = [
@@ -1158,6 +1158,7 @@ function loadData() {
             if (!state.categoryConfig || state.categoryConfig.length === 0) state.categoryConfig = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_CONFIG));
             if (!state.transactions) state.transactions = JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS));
             if (!state.loans) state.loans = JSON.parse(JSON.stringify(DEFAULT_LOANS));
+            state.loans.forEach(l => { if (!l.prepayments) l.prepayments = []; });
             if (!state.goals) state.goals = JSON.parse(JSON.stringify(DEFAULT_GOALS));
             if (!state.assets) state.assets = JSON.parse(JSON.stringify(DEFAULT_ASSETS));
             if (!state.recurringItems) state.recurringItems = JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS));
@@ -1314,6 +1315,7 @@ loadData = async function() {
             if (!state.categoryConfig || state.categoryConfig.length === 0) state.categoryConfig = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_CONFIG));
             if (!state.transactions) state.transactions = JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS));
             if (!state.loans) state.loans = JSON.parse(JSON.stringify(DEFAULT_LOANS));
+            state.loans.forEach(l => { if (!l.prepayments) l.prepayments = []; });
             if (!state.goals) state.goals = JSON.parse(JSON.stringify(DEFAULT_GOALS));
             if (!state.assets) state.assets = JSON.parse(JSON.stringify(DEFAULT_ASSETS));
             if (!state.recurringItems) state.recurringItems = JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS));
@@ -1363,20 +1365,118 @@ function calcOutstandingBalance(principal, annualRatePct, tenureMonths, monthsEl
     return Math.max(0, principal * factor - emi * (factor - 1) / r);
 }
 
+// Number of EMI installments already due as of `today`, counting the loan's start date itself
+// as the first due installment (matching regenerateLoanInstances, which logs an EMI on the start
+// date and then one every month after). A plain calendar-month difference undercounts by one -
+// e.g. a loan that started 1 Jun and is viewed on 5 Jul has had 2 installments come due (Jun + Jul),
+// not 1 - so we add 1 for the start-date installment, then pull it back off if today's day-of-month
+// hasn't yet reached the start's day-of-month (i.e. this month's installment date hasn't arrived yet).
 function loanMonthsElapsed(item, today) {
     const start = parseDate(item.startDate);
-    return Math.max(0, (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth()));
+    if (start > today) return 0;
+    let months = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
+    if (today.getDate() < start.getDate()) months -= 1;
+    return Math.max(0, months + 1);
+}
+
+// ---- Prepayment-aware amortization simulation ----
+// Walks the loan month by month from its start date, applying the fixed EMI each period and, on
+// whichever installment date each recorded prepayment falls on or before, subtracting the lump sum
+// from the balance before that month's interest is calculated. Because the EMI itself never changes,
+// any prepayment shortens how many installments are needed to reach a zero balance - i.e. it reduces
+// tenure rather than reducing the EMI. Returns the full month-by-month schedule plus totals.
+function simulateLoanAmortization(loan) {
+    const P = loan.principal;
+    const r = (loan.rate || 0) / 12 / 100;
+    const emi = loan.emi;
+    const start = parseDate(loan.startDate);
+    const prepayments = (loan.prepayments || [])
+        .map(p => ({ date: parseDate(p.date), amount: p.amount }))
+        .sort((a, b) => a.date - b.date);
+
+    let balance = P;
+    let cursor = new Date(start);
+    let pIdx = 0;
+    let totalInterest = 0;
+    let totalPrepaid = 0;
+    const schedule = [];
+    // Safety cap so a bad EMI/rate combination (one that never amortizes) can't loop forever.
+    const maxMonths = Math.max(loan.tenure || 0, 12) * 4 + 60;
+
+    while (balance > 0.5 && schedule.length < maxMonths) {
+        let prepaidThisMonth = 0;
+        while (pIdx < prepayments.length && prepayments[pIdx].date <= cursor) {
+            prepaidThisMonth += prepayments[pIdx].amount;
+            pIdx++;
+        }
+        if (prepaidThisMonth > 0) {
+            balance -= prepaidThisMonth;
+            totalPrepaid += prepaidThisMonth;
+            if (balance < 0) balance = 0;
+        }
+        if (balance <= 0.5) {
+            if (prepaidThisMonth > 0) schedule.push({ month: schedule.length + 1, date: fmtDateStr(cursor), emi: 0, principal: 0, interest: 0, prepayment: prepaidThisMonth, balance: 0 });
+            break;
+        }
+        const interest = balance * r;
+        let principalPaid = emi - interest;
+        let emiThisMonth = emi;
+        if (principalPaid >= balance) {
+            principalPaid = balance;
+            emiThisMonth = principalPaid + interest;
+        }
+        balance -= principalPaid;
+        if (balance < 0.5) balance = 0;
+        totalInterest += interest;
+        schedule.push({ month: schedule.length + 1, date: fmtDateStr(cursor), emi: emiThisMonth, principal: principalPaid, interest, prepayment: prepaidThisMonth, balance });
+        cursor = advanceByFrequency(cursor, 'Monthly');
+    }
+
+    return { schedule, totalInterest, totalPrepaid, revisedTenureMonths: schedule.length };
+}
+
+// Current status (as of `today`) for a loan, taking any recorded prepayments into account.
+// Falls back to the plain closed-form amortization (calcOutstandingBalance) when a loan has no
+// prepayments, so behavior for the common case is unchanged; only prepaid loans use the simulation.
+function getLoanStatus(loan, today) {
+    if (!loan.prepayments || loan.prepayments.length === 0) {
+        const monthsElapsed = loanMonthsElapsed(loan, today);
+        const outstanding = Math.round(calcOutstandingBalance(loan.principal, loan.rate, loan.tenure, monthsElapsed));
+        return {
+            outstanding,
+            monthsElapsed,
+            monthsRemaining: Math.max(0, loan.tenure - monthsElapsed),
+            revisedTenureMonths: loan.tenure
+        };
+    }
+    const sim = simulateLoanAmortization(loan);
+    const start = parseDate(loan.startDate);
+    let monthsElapsed = 0;
+    let outstanding = loan.principal;
+    if (start <= today) {
+        for (const row of sim.schedule) {
+            if (parseDate(row.date) > today) break;
+            monthsElapsed++;
+            outstanding = row.balance;
+        }
+    }
+    return {
+        outstanding: Math.round(outstanding),
+        monthsElapsed,
+        monthsRemaining: Math.max(0, sim.revisedTenureMonths - monthsElapsed),
+        revisedTenureMonths: sim.revisedTenureMonths
+    };
 }
 
 // Remaining amount still payable (future EMIs) for a single loan from today onward
 function loanRemainingPayable(item, today) {
-    const monthsElapsed = loanMonthsElapsed(item, today);
-    const monthsRemaining = Math.max(0, item.tenure - monthsElapsed);
-    return item.emi * monthsRemaining;
+    const status = getLoanStatus(item, today);
+    return item.emi * status.monthsRemaining;
 }
 
 // Auto-updates the `outstanding` balance for every loan that has autoOutstanding !== false,
-// using the standard amortization formula based on principal/rate/tenure/startDate vs today's date.
+// using the standard amortization formula based on principal/rate/tenure/startDate vs today's date
+// (or, for loans with recorded prepayments, the prepayment-aware simulation instead).
 // This is what makes "Outstanding" drop on its own each month instead of needing manual edits.
 // Loans with autoOutstanding === false keep whatever value was entered manually (e.g. if the
 // person prepaid extra and the bank's real balance no longer matches the plain EMI schedule).
@@ -1386,8 +1486,7 @@ function syncAutoLoanOutstanding() {
     let changed = false;
     state.loans.forEach(item => {
         if (item.autoOutstanding === false) return;
-        const monthsElapsed = loanMonthsElapsed(item, today);
-        const computed = Math.round(calcOutstandingBalance(item.principal, item.rate, item.tenure, monthsElapsed));
+        const computed = getLoanStatus(item, today).outstanding;
         if (item.outstanding !== computed) {
             item.outstanding = computed;
             changed = true;
@@ -1471,6 +1570,7 @@ function renderAll() {
     renderReports();
     renderInsights();
     renderAmortizationDropdown();
+    renderAmortization();
     renderBudgetUtilization();
     renderChartsForTab(currentTab);
 }
@@ -1705,15 +1805,16 @@ function renderBudgetConfig() {
 }
 
 function loanRowHtml(item, today) {
-    const start = parseDate(item.startDate);
-    const monthsElapsed = Math.max(0, (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth()));
-    const monthsRemaining = Math.max(0, item.tenure - monthsElapsed);
+    const status = getLoanStatus(item, today);
+    const monthsRemaining = status.monthsRemaining;
     const paid = item.principal - item.outstanding;
     const pctPaid = item.principal > 0 ? (paid / item.principal) * 100 : 0;
     const totalPayableLeft = item.emi * monthsRemaining;
     const isAuto = item.autoOutstanding !== false;
+    const hasPrepayments = item.prepayments && item.prepayments.length > 0;
     const outstandingCell = fmt(item.outstanding) + ' <span style="font-size:0.7rem; color:var(--text-muted);" title="' + (isAuto ? 'Recalculated automatically each month' : 'Manually entered value') + '">' + (isAuto ? '<i class="fas fa-arrows-rotate"></i> auto' : '<i class="fas fa-pen"></i> manual') + '</span>';
-    return '<tr><td><strong>' + item.name + '</strong></td><td>' + item.lender + '</td><td>' + fmt(item.principal) + '</td><td>' + outstandingCell + '</td><td>' + item.rate + '%</td><td>' + fmt(item.emi) + '</td><td>' + item.tenure + ' mo</td><td>' + monthsRemaining + ' mo</td><td>' + fmt(totalPayableLeft) + '</td><td>' + pctPaid.toFixed(1) + '%</td><td><span class="badge ' + (pctPaid >= 100 ? 'badge-success' : 'badge-warning') + '">' + (pctPaid >= 100 ? 'Completed' : 'Active') + '</span></td><td><div class="action-btns"><button class="action-btn edit" onclick="editLoan(\'' + item.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteLoan(\'' + item.id + '\')"><i class="fas fa-trash"></i></button></div></td></tr>';
+    const remainingCell = monthsRemaining + ' mo' + (hasPrepayments && status.revisedTenureMonths !== item.tenure ? ' <span style="font-size:0.7rem; color:var(--secondary);" title="Shortened from ' + item.tenure + ' mo by prepayments">(was ' + item.tenure + ')</span>' : '');
+    return '<tr><td><strong>' + item.name + '</strong></td><td>' + item.lender + '</td><td>' + fmt(item.principal) + '</td><td>' + outstandingCell + '</td><td>' + item.rate + '%</td><td>' + fmt(item.emi) + '</td><td>' + item.tenure + ' mo</td><td>' + remainingCell + '</td><td>' + fmt(totalPayableLeft) + '</td><td>' + pctPaid.toFixed(1) + '%</td><td><span class="badge ' + (pctPaid >= 100 ? 'badge-success' : 'badge-warning') + '">' + (pctPaid >= 100 ? 'Completed' : 'Active') + '</span></td><td><div class="action-btns"><button class="action-btn edit" onclick="editLoan(\'' + item.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteLoan(\'' + item.id + '\')"><i class="fas fa-trash"></i></button></div></td></tr>';
 }
 
 function completedLoanRowHtml(item) {
@@ -1742,14 +1843,40 @@ function getInactiveLoanYear(item) {
 // so the Loans tab and the Expense History are linked by ID rather than by guessing from a category
 // name. Each transaction's date = that EMI's due date (loan start date, advanced monthly) and its
 // amount = the loan's EMI. Wipe-and-regenerate keeps this in sync whenever a loan is edited — same
-// pattern used for Fixed (recurring) Items further down.
+// pattern used for Fixed (recurring) Items further down. Prepayments get the same treatment: each
+// recorded prepayment becomes its own one-time Expense transaction tagged with the same loanId, so
+// it shows up in Expense History and counts toward the "Loan" card on the Expense dashboard exactly
+// like a regular EMI does.
 function regenerateLoanInstances(loanId) {
-    // Same fallback as Fixed Items: match by the deterministic "loanId_emi_YYYYMMDD" id
-    // prefix too, in case a sync backend drops the loanId field on a round trip.
-    const idPrefix = loanId + '_emi_';
-    state.transactions = state.transactions.filter(t => t.loanId !== loanId && !(typeof t.id === 'string' && t.id.startsWith(idPrefix)));
+    // Same fallback as Fixed Items: match by the deterministic "loanId_emi_YYYYMMDD" / "loanId_prepay_..."
+    // id prefixes too, in case a sync backend drops the loanId field on a round trip.
+    const emiPrefix = loanId + '_emi_';
+    const prepayPrefix = loanId + '_prepay_';
+    state.transactions = state.transactions.filter(t => t.loanId !== loanId && !(typeof t.id === 'string' && (t.id.startsWith(emiPrefix) || t.id.startsWith(prepayPrefix))));
     const loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
+
+    // Prepayments are explicit, user-entered one-time payments - unlike EMIs they don't wait on a
+    // salary transaction being logged for that month, and they still count as having happened even
+    // if the loan has since been marked Completed, so this runs before the completed-loan check below.
+    (loan.prepayments || []).forEach((p, idx) => {
+        state.transactions.push({
+            id: loan.id + '_prepay_' + idx + '_' + String(p.date).replace(/-/g, ''),
+            date: p.date,
+            type: 'Expense',
+            category: loan.name,
+            subcategory: 'Prepayment',
+            classification: 'Need',
+            amount: p.amount,
+            payment: 'Bank Transfer',
+            bank: loan.lender,
+            member: 'Self',
+            vendor: loan.lender,
+            notes: loan.name + ' Prepayment (' + p.date + ')',
+            loanId: loan.id
+        });
+    });
+
     // A Completed/Inactive loan (outstanding paid off) should not keep adding EMI transactions -
     // the filter above already wiped any it had, so simply stop here without regenerating.
     if (isLoanCompleted(loan)) return;
@@ -1866,22 +1993,46 @@ function renderLoans() {
     const nodalCardsHtml = nodalDefs.map(def => {
         const loans = activeLoans.filter(l => l.type === def.type);
         if (loans.length === 0) return '';
-        const outstanding = loans.reduce((s, l) => s + l.outstanding, 0);
+        const statuses = loans.map(l => getLoanStatus(l, today));
+        const outstanding = statuses.reduce((s, st) => s + st.outstanding, 0);
         const totalPayableLeft = loans.reduce((s, l) => s + loanRemainingPayable(l, today), 0);
+        const totalPrepaid = loans.reduce((s, l) => s + (l.prepayments || []).reduce((ps, p) => ps + p.amount, 0), 0);
+        const monthsRemainingList = statuses.map(st => st.monthsRemaining);
+        const tenureLeftLabel = loans.length === 1
+            ? monthsRemainingList[0] + ' mo left'
+            : Math.min(...monthsRemainingList) + '\u2013' + Math.max(...monthsRemainingList) + ' mo left';
+        const statsRow = '<div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:0.78rem;">' +
+            '<div><span style="color:var(--text-muted);">Prepaid</span><br><span style="font-weight:600; color:var(--secondary);">' + (totalPrepaid > 0 ? fmt(totalPrepaid) : '\u2014') + '</span></div>' +
+            '<div><span style="color:var(--text-muted);">Tenure Left</span><br><span style="font-weight:600;">' + tenureLeftLabel + '</span></div>' +
+            '<div><span style="color:var(--text-muted);">Still to Pay (incl. interest)</span><br><span style="font-weight:600; color:var(--danger);">' + fmt(totalPayableLeft) + '</span></div>' +
+        '</div>';
         return '<div class="dash-card ' + def.cls + '">' +
             '<div class="card-icon"><i class="fas ' + def.icon + '"></i></div>' +
             '<div class="card-label">' + def.label + (loans.length > 1 ? 's' : '') + ' - Outstanding</div>' +
             '<div class="card-value">' + fmt(outstanding) + '</div>' +
-            '<div class="card-sub">' + loans.length + ' loan' + (loans.length !== 1 ? 's' : '') + ' \u00b7 Total payable left: ' + fmt(totalPayableLeft) + '</div>' +
+            '<div class="card-sub">' + loans.length + ' loan' + (loans.length !== 1 ? 's' : '') + '</div>' +
+            statsRow +
         '</div>';
     }).join('') + (otherActiveLoans.length ? (() => {
-        const outstanding = otherActiveLoans.reduce((s, l) => s + l.outstanding, 0);
+        const statuses = otherActiveLoans.map(l => getLoanStatus(l, today));
+        const outstanding = statuses.reduce((s, st) => s + st.outstanding, 0);
         const totalPayableLeft = otherActiveLoans.reduce((s, l) => s + loanRemainingPayable(l, today), 0);
+        const totalPrepaid = otherActiveLoans.reduce((s, l) => s + (l.prepayments || []).reduce((ps, p) => ps + p.amount, 0), 0);
+        const monthsRemainingList = statuses.map(st => st.monthsRemaining);
+        const tenureLeftLabel = otherActiveLoans.length === 1
+            ? monthsRemainingList[0] + ' mo left'
+            : Math.min(...monthsRemainingList) + '\u2013' + Math.max(...monthsRemainingList) + ' mo left';
+        const statsRow = '<div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:0.78rem;">' +
+            '<div><span style="color:var(--text-muted);">Prepaid</span><br><span style="font-weight:600; color:var(--secondary);">' + (totalPrepaid > 0 ? fmt(totalPrepaid) : '\u2014') + '</span></div>' +
+            '<div><span style="color:var(--text-muted);">Tenure Left</span><br><span style="font-weight:600;">' + tenureLeftLabel + '</span></div>' +
+            '<div><span style="color:var(--text-muted);">Still to Pay (incl. interest)</span><br><span style="font-weight:600; color:var(--danger);">' + fmt(totalPayableLeft) + '</span></div>' +
+        '</div>';
         return '<div class="dash-card loan">' +
             '<div class="card-icon"><i class="fas fa-file-invoice-dollar"></i></div>' +
             '<div class="card-label">Other Loans - Outstanding</div>' +
             '<div class="card-value">' + fmt(outstanding) + '</div>' +
-            '<div class="card-sub">' + otherActiveLoans.length + ' loan' + (otherActiveLoans.length !== 1 ? 's' : '') + ' \u00b7 Total payable left: ' + fmt(totalPayableLeft) + '</div>' +
+            '<div class="card-sub">' + otherActiveLoans.length + ' loan' + (otherActiveLoans.length !== 1 ? 's' : '') + '</div>' +
+            statsRow +
         '</div>';
     })() : '');
 
@@ -1929,9 +2080,7 @@ function renderNetWorth() {
     if (liabTbody) {
         liabTbody.innerHTML = state.loans.map(l => {
             const today = new Date();
-            const start = parseDate(l.startDate);
-            const monthsElapsed = Math.max(0, (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth()));
-            const monthsRemaining = Math.max(0, l.tenure - monthsElapsed);
+            const monthsRemaining = getLoanStatus(l, today).monthsRemaining;
             return '<tr><td><strong>' + l.name + '</strong></td><td>' + l.type + '</td><td>' + fmt(l.principal) + '</td><td>' + fmt(l.outstanding) + '</td><td>' + fmt(l.emi) + '</td><td>' + l.rate + '%</td><td>' + monthsRemaining + '</td></tr>';
         }).join('') + '<tr style="font-weight:700; background:rgba(239,68,68,0.1);"><td colspan="2">TOTAL LIABILITIES</td><td>' + fmt(state.loans.reduce((s,l) => s+l.principal,0)) + '</td><td>' + fmt(state.loans.reduce((s,l) => s+l.outstanding,0)) + '</td><td>' + fmt(state.loans.reduce((s,l) => s+l.emi,0)) + '</td><td colspan="2"></td></tr>';
     }
@@ -2114,8 +2263,13 @@ function renderInsights() {
 function renderAmortizationDropdown() {
     const select = document.getElementById('amortizationLoanSelect');
     if (!select) return;
+    const prevValue = select.value;
     select.innerHTML = '<option value="">Select a loan</option>';
-    state.loans.forEach(loan => { select.innerHTML += '<option value="' + loan.id + '">' + loan.name + '</option>'; });
+    // Amortization is only meaningful for interest-bearing loans (Mortgage/Personal/Car/Education) -
+    // Consumer EMIs (laptop/phone purchases etc.) are typically 0% and just split evenly, so they're
+    // excluded here to keep this dropdown focused on real loans.
+    state.loans.filter(loan => loan.type !== 'Consumer').forEach(loan => { select.innerHTML += '<option value="' + loan.id + '">' + loan.name + '</option>'; });
+    if (Array.from(select.options).some(o => o.value === prevValue)) select.value = prevValue;
 }
 
 function renderAmortization() {
@@ -2125,23 +2279,102 @@ function renderAmortization() {
     if (!loanId) { container.innerHTML = '<div class="empty-state"><i class="fas fa-calculator"></i><p>Select a loan to view amortization</p></div>'; return; }
     const loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
+    if (!loan.prepayments) loan.prepayments = [];
 
-    const P = loan.outstanding;
-    const r = loan.rate / 12 / 100;
-    const n = loan.tenure;
-    const emi = loan.emi;
-    let balance = P;
     const today = new Date();
-    const schedule = [];
-    for (let i = 1; i <= n; i++) {
-        const interest = balance * r;
-        const principalPaid = emi - interest;
-        balance -= principalPaid;
-        if (balance < 0) balance = 0;
-        schedule.push({ month: i, emi: emi, principal: principalPaid, interest: interest, balance: balance });
-    }
+    const noPrepay = simulateLoanAmortization({ ...loan, prepayments: [] });
+    const withPrepay = simulateLoanAmortization(loan);
+    const monthsSaved = noPrepay.revisedTenureMonths - withPrepay.revisedTenureMonths;
+    const interestSaved = noPrepay.totalInterest - withPrepay.totalInterest;
+    const schedule = withPrepay.schedule;
 
-    container.innerHTML = '<div style="margin-bottom: 16px; display: flex; gap: 20px; flex-wrap: wrap;"><div><strong>Loan:</strong> ' + loan.name + '</div><div><strong>Outstanding:</strong> ' + fmt(loan.outstanding) + '</div><div><strong>Rate:</strong> ' + loan.rate + '% p.a.</div><div><strong>Tenure:</strong> ' + loan.tenure + ' months</div><div><strong>EMI:</strong> ' + fmt(loan.emi) + '</div></div><div class="table-container"><table><thead><tr><th>Month</th><th>EMI</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead><tbody>' + schedule.map((s, idx) => { const isPaid = idx < Math.floor((today - parseDate(loan.startDate)) / (30*24*60*60*1000)); return '<tr style="' + (isPaid ? 'opacity: 0.6;' : '') + '"><td>' + s.month + '</td><td>' + fmt(s.emi) + '</td><td>' + fmt(s.principal) + '</td><td>' + fmt(s.interest) + '</td><td>' + fmt(s.balance) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    // The "revised tenure" above comes from actually simulating the payoff month by month using
+    // the loan's Principal, Rate and EMI - it's the real number of months the EMI takes to clear
+    // the balance. The Tenure field the loan was saved with is just a label and isn't enforced, so
+    // if the EMI wasn't recalculated after the last time Principal/Rate/Tenure were edited, the two
+    // numbers can disagree - e.g. an EMI that was correct for a 240-month loan will still only be
+    // sized for a 240-month payoff even if Tenure was later changed to 180. Flag that mismatch here
+    // rather than silently showing a schedule that doesn't match what the loan form says.
+    const correctEmiForStatedTenure = Math.round(calcEMI(loan.principal, loan.rate, loan.tenure));
+    const tenureMismatch = noPrepay.revisedTenureMonths !== loan.tenure;
+    const mismatchWarning = tenureMismatch
+        ? '<div style="margin-bottom:16px; padding:12px 16px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:10px; font-size:0.85rem;">' +
+            '<strong><i class="fas fa-triangle-exclamation" style="color:var(--warning);"></i> Tenure field says ' + loan.tenure + ' months, but the actual payoff (at the entered EMI of ' + fmt(loan.emi) + ' and rate of ' + loan.rate + '%) takes ' + noPrepay.revisedTenureMonths + ' months.</strong><br>' +
+            'The schedule below is the real payoff timeline based on Principal, Rate and EMI - the Tenure field itself isn\'t enforced. To make them match, edit the loan and set EMI to <strong>' + fmt(correctEmiForStatedTenure) + '</strong> (the amount that clears ' + fmt(loan.principal) + ' in exactly ' + loan.tenure + ' months at ' + loan.rate + '%), or update Tenure to ' + noPrepay.revisedTenureMonths + ' to match the current EMI.' +
+          '</div>'
+        : '';
+
+    // ---- Prepayment list + add form ----
+    const prepayRows = loan.prepayments.length === 0
+        ? '<div style="font-size:0.85rem; color:var(--text-muted); padding:6px 0;">No prepayments recorded yet.</div>'
+        : loan.prepayments
+            .map((p, idx) => ({ p, idx }))
+            .sort((a, b) => parseDate(a.p.date) - parseDate(b.p.date))
+            .map(({ p, idx }) => '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 10px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:6px;"><span>' + parseDate(p.date).toLocaleDateString('en-IN') + ' &nbsp;-&nbsp; <strong>' + fmt(p.amount) + '</strong></span><button class="action-btn delete" onclick="removeLoanPrepayment(\'' + loan.id + '\',' + idx + ')" title="Remove"><i class="fas fa-trash"></i></button></div>')
+            .join('');
+
+    const summaryHtml = loan.prepayments.length > 0
+        ? '<div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:10px; padding:12px; background:rgba(16,185,129,0.08); border-radius:10px;">' +
+            '<div><div style="font-size:0.75rem; color:var(--text-muted);">Original Tenure</div><div style="font-weight:700;">' + noPrepay.revisedTenureMonths + ' mo</div></div>' +
+            '<div><div style="font-size:0.75rem; color:var(--text-muted);">Revised Tenure</div><div style="font-weight:700; color:var(--secondary);">' + withPrepay.revisedTenureMonths + ' mo</div></div>' +
+            '<div><div style="font-size:0.75rem; color:var(--text-muted);">Tenure Reduced By</div><div style="font-weight:700; color:var(--secondary);">' + monthsSaved + ' mo</div></div>' +
+            '<div><div style="font-size:0.75rem; color:var(--text-muted);">Interest Saved</div><div style="font-weight:700; color:var(--secondary);">' + fmt(interestSaved) + '</div></div>' +
+          '</div>'
+        : '';
+
+    const prepaySection = '<div style="margin-bottom:20px; padding:16px; background:rgba(255,255,255,0.02); border-radius:12px;">' +
+        '<div style="font-weight:700; margin-bottom:10px;"><i class="fas fa-hand-holding-dollar"></i> Prepayments</div>' +
+        prepayRows +
+        summaryHtml +
+        '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; align-items:flex-end;">' +
+            '<div><label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Date</label><input type="date" class="config-input" id="prepayDate_' + loan.id + '" value="' + fmtDateStr(today) + '"></div>' +
+            '<div><label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Amount</label><input type="number" class="config-input" id="prepayAmount_' + loan.id + '" placeholder="e.g. 100000"></div>' +
+            '<button class="btn btn-primary" onclick="addLoanPrepayment(\'' + loan.id + '\')"><i class="fas fa-plus"></i> Add Prepayment</button>' +
+        '</div>' +
+    '</div>';
+
+    const tableHtml = '<div style="margin-bottom: 16px; display: flex; gap: 20px; flex-wrap: wrap;"><div><strong>Loan:</strong> ' + loan.name + '</div><div><strong>Outstanding:</strong> ' + fmt(loan.outstanding) + '</div><div><strong>Rate:</strong> ' + loan.rate + '% p.a.</div><div><strong>Tenure:</strong> ' + withPrepay.revisedTenureMonths + ' months' + (monthsSaved > 0 ? ' <span style="color:var(--secondary); font-size:0.8rem;">(orig ' + noPrepay.revisedTenureMonths + ')</span>' : '') + '</div><div><strong>EMI:</strong> ' + fmt(loan.emi) + '</div></div><div class="table-container"><table><thead><tr><th>Month</th><th>Date</th><th>EMI</th><th>Principal</th><th>Interest</th><th>Prepayment</th><th>Balance</th></tr></thead><tbody>' +
+        schedule.map(s => {
+            const rowDate = parseDate(s.date);
+            const isPaid = rowDate <= today;
+            const hasPrepay = s.prepayment > 0;
+            const rowStyle = hasPrepay ? 'background: rgba(16,185,129,0.1);' : (isPaid ? 'opacity: 0.6;' : '');
+            return '<tr style="' + rowStyle + '"><td>' + s.month + '</td><td>' + rowDate.toLocaleDateString('en-IN') + '</td><td>' + fmt(s.emi) + '</td><td>' + fmt(s.principal) + '</td><td>' + fmt(s.interest) + '</td><td>' + (hasPrepay ? fmt(s.prepayment) : '-') + '</td><td>' + fmt(s.balance) + '</td></tr>';
+        }).join('') +
+        '</tbody></table></div>';
+
+    container.innerHTML = mismatchWarning + prepaySection + tableHtml;
+}
+
+function addLoanPrepayment(loanId) {
+    const loan = state.loans.find(l => l.id === loanId);
+    if (!loan) return;
+    const dateEl = document.getElementById('prepayDate_' + loanId);
+    const amountEl = document.getElementById('prepayAmount_' + loanId);
+    const date = dateEl?.value;
+    const amount = parseFloat(amountEl?.value);
+    if (!date || !amount || amount <= 0) { showToast('Enter a valid prepayment date and amount', 'error'); return; }
+    if (!loan.prepayments) loan.prepayments = [];
+    loan.prepayments.push({ date, amount });
+    syncAutoLoanOutstanding();
+    regenerateLoanInstances(loanId);
+    saveState();
+    renderAll();
+    showToast('Prepayment added!', 'success');
+}
+
+function removeLoanPrepayment(loanId, idx) {
+    const loan = state.loans.find(l => l.id === loanId);
+    if (!loan || !loan.prepayments) return;
+    const sorted = loan.prepayments.map((p, i) => ({ p, i })).sort((a, b) => parseDate(a.p.date) - parseDate(b.p.date));
+    const target = sorted[idx];
+    if (!target) return;
+    loan.prepayments.splice(target.i, 1);
+    syncAutoLoanOutstanding();
+    regenerateLoanInstances(loanId);
+    saveState();
+    renderAll();
+    showToast('Prepayment removed', 'success');
 }
 
 function renderChartsForTab(tabName) {
@@ -2346,12 +2579,15 @@ function saveLoan() {
     const autoOutstanding = !!document.getElementById('loanAutoOutstanding')?.checked;
     if (!name || !principal) { showToast('Please fill required fields', 'error'); return; }
 
+    const existingLoan = editingId ? state.loans.find(l => l.id === editingId) : null;
+    const prepayments = existingLoan?.prepayments || [];
+
     if (autoOutstanding) {
-        const monthsElapsed = loanMonthsElapsed({ startDate }, new Date());
-        outstanding = Math.round(calcOutstandingBalance(principal, rate, tenure, monthsElapsed));
+        const status = getLoanStatus({ startDate, principal, rate, tenure, emi, prepayments }, new Date());
+        outstanding = status.outstanding;
     }
 
-    const loan = { id: editingId || ('loan_' + Date.now()), name, lender, principal, outstanding, rate, emi, tenure, startDate, type, autoOutstanding };
+    const loan = { id: editingId || ('loan_' + Date.now()), name, lender, principal, outstanding, rate, emi, tenure, startDate, type, autoOutstanding, prepayments };
     if (editingId) {
         const idx = state.loans.findIndex(l => l.id === editingId);
         if (idx >= 0) state.loans[idx] = loan;
