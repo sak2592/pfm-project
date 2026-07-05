@@ -1453,6 +1453,7 @@ function populateFilters() {
 }
 
 function renderAll() {
+    if (dedupeTransactionsById()) saveState();
     syncAutoLoanOutstanding();
     syncAllLoanTransactions();
     regenerateAllRecurring();
@@ -1743,7 +1744,10 @@ function getInactiveLoanYear(item) {
 // amount = the loan's EMI. Wipe-and-regenerate keeps this in sync whenever a loan is edited — same
 // pattern used for Fixed (recurring) Items further down.
 function regenerateLoanInstances(loanId) {
-    state.transactions = state.transactions.filter(t => t.loanId !== loanId);
+    // Same fallback as Fixed Items: match by the deterministic "loanId_emi_YYYYMMDD" id
+    // prefix too, in case a sync backend drops the loanId field on a round trip.
+    const idPrefix = loanId + '_emi_';
+    state.transactions = state.transactions.filter(t => t.loanId !== loanId && !(typeof t.id === 'string' && t.id.startsWith(idPrefix)));
     const loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
     // A Completed/Inactive loan (outstanding paid off) should not keep adding EMI transactions -
@@ -2498,24 +2502,29 @@ function repairDuplicateRecurringIds() {
 
 // One-time self-heal for data that already accumulated duplicate rows (e.g. from repeated
 // refreshes before the id-prefix fix above existed, or a lossy Sheets round-trip). Since every
-// auto-generated transaction has a deterministic id (ruleId_YYYYMMDD), any duplicates share the
-// exact same id - so collapsing by id is always safe and never removes a legitimate transaction.
+// auto-generated transaction has a deterministic id (ruleId_YYYYMMDD or loanId_emi_YYYYMMDD), any
+// duplicates share the exact same id - so collapsing by id is always safe. We keep the LAST
+// occurrence of each id, not the first: the freshest regenerated copy is appended to the end of
+// the array and is the one carrying the correct recurringId/loanId tag, while an older, corrupted
+// copy (missing that tag after a lossy sync round-trip) sits earlier in the array.
 function dedupeTransactionsById() {
-    const seen = new Set();
     const before = state.transactions.length;
-    state.transactions = state.transactions.filter(t => {
-        if (seen.has(t.id)) return false;
+    const seen = new Set();
+    const kept = [];
+    for (let i = state.transactions.length - 1; i >= 0; i--) {
+        const t = state.transactions[i];
+        if (seen.has(t.id)) continue;
         seen.add(t.id);
-        return true;
-    });
+        kept.push(t);
+    }
+    kept.reverse();
+    state.transactions = kept;
     return state.transactions.length !== before;
 }
 
 function regenerateAllRecurring() {
     if (!state.recurringItems) state.recurringItems = [];
-    let needsSave = repairDuplicateRecurringIds();
-    if (dedupeTransactionsById()) needsSave = true;
-    if (needsSave) saveState();
+    if (repairDuplicateRecurringIds()) saveState();
     state.recurringItems.forEach(r => regenerateRuleInstances(r.id));
 }
 
