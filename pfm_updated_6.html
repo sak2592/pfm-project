@@ -31,6 +31,13 @@
         .logo h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
         .logo span { color: var(--text-muted); font-size: 0.85rem; }
         .header-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .ai-insights-btn { margin-left: 20px; display: flex; align-items: center; gap: 8px; padding: 10px 18px; border: none; border-radius: 12px; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 0.85rem; color: white;
+            background: linear-gradient(135deg, var(--pink), var(--purple), var(--info)); background-size: 200% 200%; animation: aiGradientShift 4s ease infinite;
+            box-shadow: 0 4px 18px rgba(139,92,246,0.4); transition: transform 0.25s ease, box-shadow 0.25s ease; }
+        .ai-insights-btn i { font-size: 1rem; }
+        .ai-insights-btn:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 8px 26px rgba(236,72,153,0.5); }
+        @keyframes aiGradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        @media (max-width: 700px) { .ai-insights-btn span { display: none; } .ai-insights-btn { margin-left: 8px; padding: 10px 12px; } }
         .salary-display { background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1)); border: 1px solid rgba(99,102,241,0.3); padding: 10px 20px; border-radius: 12px; display: flex; align-items: center; gap: 10px; }
         .salary-display label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
         .salary-display input { background: transparent; border: none; color: var(--text); font-size: 1.2rem; font-weight: 700; width: 160px; text-align: right; font-family: inherit; }
@@ -125,11 +132,12 @@
         .progress-text { font-size: 0.8rem; font-weight: 600; min-width: 40px; text-align: right; }
         .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
         .util-node-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 14px; padding-top: 4px; }
-        .util-node { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 6px; border-radius: 14px; background: var(--card-hover); border: 1px solid var(--border); transition: transform 0.2s ease, border-color 0.2s ease; cursor: default; }
-        .util-node:hover { transform: translateY(-3px); border-color: var(--ring-color, var(--primary)); }
+        .util-node { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px 12px; border-radius: 14px; background: linear-gradient(160deg, var(--node-tint) 0%, var(--card-hover) 65%); border: 1px solid var(--border); transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; cursor: default; position: relative; overflow: hidden; }
+        .util-node:hover { transform: translateY(-3px); border-color: var(--ring-color, var(--primary)); box-shadow: 0 8px 20px rgba(0,0,0,0.25); }
         .util-node-ring { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), rgba(255,255,255,0.08) 0); flex-shrink: 0; }
         .util-node-ring::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--card-hover); }
-        .util-node-pct { position: relative; z-index: 1; font-size: 0.7rem; font-weight: 700; }
+        .util-node-icon { position: relative; z-index: 1; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; background: var(--accent-color, var(--primary)); color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+        .util-node-pct { font-size: 0.7rem; font-weight: 700; color: var(--ring-color); }
         .util-node-name { font-size: 0.68rem; color: var(--text-muted); text-align: center; line-height: 1.2; max-width: 82px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .status-green { background: rgba(16,185,129,0.15); color: #34d399; }
         .status-yellow { background: rgba(245,158,11,0.15); color: #fbbf24; }
@@ -243,6 +251,10 @@
                     <h1>Personal Financial Management System</h1>
                     <span>Income, Budget, Loans, Goals & Retirement Planner</span>
                 </div>
+                <button class="ai-insights-btn" onclick="openAIInsightsModal()" title="AI Financial Insights">
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                    <span>AI Insights</span>
+                </button>
             </div>
             <div class="header-actions">
                 <div class="sync-status synced" id="syncStatus" style="margin-right:8px;">
@@ -298,14 +310,11 @@
             <button class="nav-tab" onclick="switchTab('investment')" data-tab="investment">
                 <i class="fas fa-chart-line"></i> Investment
             </button>
-            <button class="nav-tab" onclick="switchTab('transactions')" data-tab="transactions">
-                <i class="fas fa-list"></i> Transactions
+            <button class="nav-tab" onclick="switchTab('loans')" data-tab="loans">
+                <i class="fas fa-landmark"></i> Loans
             </button>
             <button class="nav-tab" onclick="switchTab('smart-budget')" data-tab="smart-budget">
                 <i class="fas fa-wand-magic-sparkles"></i> Smart Budget
-            </button>
-            <button class="nav-tab" onclick="switchTab('loans')" data-tab="loans">
-                <i class="fas fa-landmark"></i> Loans
             </button>
             <button class="nav-tab" onclick="switchTab('goals')" data-tab="goals">
                 <i class="fas fa-bullseye"></i> Goals
@@ -316,11 +325,11 @@
             <button class="nav-tab" onclick="switchTab('retirement')" data-tab="retirement">
                 <i class="fas fa-umbrella-beach"></i> Retirement
             </button>
+            <button class="nav-tab" onclick="switchTab('transactions')" data-tab="transactions">
+                <i class="fas fa-list"></i> Transactions
+            </button>
             <button class="nav-tab" onclick="switchTab('reports')" data-tab="reports">
                 <i class="fas fa-chart-bar"></i> Reports
-            </button>
-            <button class="nav-tab" onclick="switchTab('insights')" data-tab="insights">
-                <i class="fas fa-robot"></i> AI Insights
             </button>
         </div>
 
@@ -383,19 +392,22 @@
                     <div class="card-sub" id="dbInsuranceSub">0 policies</div>
                 </div>
             </div>
-            <div class="chart-grid">
-                <div class="panel">
-                    <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-pie"></i> Income Breakdown</div></div>
-                    <div class="chart-container"><canvas id="incomePieChart"></canvas></div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-list-check"></i> Budget Breakdown</div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <select id="dbUtilMonthSelect" onchange="renderDashboard();" style="background:var(--input-bg); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-family:inherit; font-size:0.8rem;"></select>
+                        <select id="dbUtilYearSelect" onchange="renderDashboard(); renderChartsForTab('overview');" style="background:var(--input-bg); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-family:inherit; font-size:0.8rem;"></select>
+                    </div>
                 </div>
-                <div class="panel">
-                    <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-bar"></i> Budget vs Actual</div></div>
-                    <div class="chart-container"><canvas id="budgetBarChart"></canvas></div>
+                <div id="dbUtilBody">
+                    <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">Click any category ring to see the transactions behind its number. Pick "All Months" in the dropdown to see yearly utilization.</div>
+                    <div id="overviewUtilization"></div>
                 </div>
             </div>
 
             <div class="panel">
-                <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-line"></i> Income vs Expense vs Savings Trend</div></div>
+                <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-line"></i> Income vs Expense vs Savings vs Loan vs Investment</div></div>
                 <div class="chart-container"><canvas id="savingsTrendChart"></canvas></div>
             </div>
             
@@ -417,23 +429,15 @@
             </div>
 
             <div class="panel">
-                <div class="panel-header" style="cursor:pointer;" onclick="toggleDbUtilPanel()">
-                    <div class="panel-title"><i class="fas fa-list-check"></i> Budget Utilization</div>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <select id="dbUtilMonthSelect" onclick="event.stopPropagation();" onchange="event.stopPropagation(); renderDashboard();" style="background:var(--input-bg); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-family:inherit; font-size:0.8rem;"></select>
-                        <select id="dbUtilYearSelect" onclick="event.stopPropagation();" onchange="event.stopPropagation(); renderDashboard();" style="background:var(--input-bg); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-family:inherit; font-size:0.8rem;"></select>
-                        <i class="fas fa-chevron-down" id="dbUtilChevron"></i>
-                    </div>
-                </div>
-                <div id="dbUtilBody" style="display:none;">
-                    <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">Click any category ring to see the transactions behind its number.</div>
-                    <div id="overviewUtilization"></div>
-                </div>
+                <div class="panel-header"><div class="panel-title"><i class="fas fa-bell"></i> Smart Financial Alerts</div></div>
+                <div id="smartAlerts"></div>
             </div>
 
             <div class="panel">
-                <div class="panel-header"><div class="panel-title"><i class="fas fa-bell"></i> Smart Financial Alerts</div></div>
-                <div id="smartAlerts"></div>
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-chart-bar"></i> Budget vs Actual (Yearly)</div>
+                </div>
+                <div class="chart-container" id="budgetBarChartContainer"><canvas id="budgetBarChart"></canvas></div>
             </div>
         </div>
 
@@ -523,12 +527,10 @@
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title"><i class="fas fa-chart-line"></i> Investment Tracker</div>
-                    
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
-                    <div class="form-group" style="margin:0;"><label>Filter Category</label><select id="investmentFilterCategory" class="config-input" onchange="renderInvestment()"><option value="">All Categories</option></select></div>
-                    <div class="form-group" style="margin:0;"><label>Year</label><select id="investmentFilterYear" class="config-input" onchange="renderInvestment()"><option value="">All Years</option></select></div>
-                    <div class="form-group" style="margin:0;"><label>Month</label><select id="investmentFilterMonth" class="config-input" onchange="renderInvestment()"><option value="">All Months</option></select></div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                        <select id="investmentFilterYear" class="config-input" onchange="onInvestmentTopFilterChange()" style="width:auto; min-width:100px;"><option value="">All Years</option></select>
+                        <select id="investmentFilterMonth" class="config-input" onchange="onInvestmentTopFilterChange()" style="width:auto; min-width:120px;"><option value="">All Months</option></select>
+                    </div>
                 </div>
                 <div class="dashboard-grid" style="margin-bottom: 20px;">
                     <div class="dash-card networth">
@@ -549,7 +551,7 @@
                         <div class="card-value" id="investmentRate">0%</div>
                         <div class="card-sub">Of total income</div>
                     </div>
-                    <div class="dash-card emi">
+                    <div class="dash-card emi" id="investmentFixedCard" style="cursor:pointer;" onclick="toggleInvestmentFixedFilter()" title="Click to view this month's Fixed Investments in Investment History below">
                         <div class="card-icon"><i class="fas fa-arrows-rotate"></i></div>
                         <div class="card-label">Monthly Fixed Investment</div>
                         <div class="card-value" id="investmentFixedTotal">Rs.0</div>
@@ -560,21 +562,9 @@
             </div>
             <div class="panel">
                 <div class="panel-header">
-                    <div class="panel-title"><i class="fas fa-chart-pie"></i> Category-wise Breakdown</div>
+                    <div class="panel-title"><i class="fas fa-chart-pie"></i> Category-wise Breakdown <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(click a category to see its investment history)</span></div>
                 </div>
                 <div class="dashboard-grid" id="investmentCategoryBreakdown"></div>
-            </div>
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title"><i class="fas fa-arrows-rotate"></i> Fixed Investments / SIPs <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(recurring, with optional annual step-up)</span></div>
-                    <button class="btn btn-primary" onclick="openRecurringModal('Investment')"><i class="fas fa-plus"></i> Add Fixed Investment</button>
-                </div>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>Category</th><th>Amount</th><th>Step-up</th><th>Frequency</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
-                        <tbody id="recurringInvestmentTable"></tbody>
-                    </table>
-                </div>
             </div>
             <div class="chart-grid">
                 <div class="panel">
@@ -586,10 +576,11 @@
                     <div class="chart-container"><canvas id="investmentCategoryChart"></canvas></div>
                 </div>
             </div>
-            <div class="panel">
+            <div class="panel" id="investmentHistoryPanel" style="display:none;">
                 <div class="panel-header">
                     <div class="panel-title"><i class="fas fa-list"></i> Investment History</div>
                 </div>
+                <div id="investmentFilterBadge"></div>
                 <div class="table-container">
                     <table>
                         <thead><tr><th>ID</th><th>Date</th><th>Category</th><th>Subcategory</th><th>Amount</th><th>% of Salary</th><th>Payment</th><th>Vendor</th><th>Actions</th></tr></thead>
@@ -698,11 +689,11 @@
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title"><i class="fas fa-list"></i> Transaction Database</div>
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
-                    <div class="form-group" style="margin:0;"><label>Filter Type</label><select id="txFilterType" class="config-input" onchange="renderTransactions()"><option value="">All</option><option value="Income">Income</option><option value="Expense">Expense</option><option value="Investment">Investment</option></select></div>
-                    <div class="form-group" style="margin:0;"><label>Filter Category</label><select id="txFilterCategory" class="config-input" onchange="renderTransactions()"><option value="">All</option></select></div>
-                    <div class="form-group" style="margin:0;"><label>Month</label><select id="txFilterMonth" class="config-input" onchange="renderTransactions()"><option value="">All</option></select></div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                        <select id="txFilterType" class="config-input" onchange="onTxFilterChange()" style="width:auto; min-width:110px;"><option value="">All Types</option><option value="Income">Income</option><option value="Expense">Expense</option><option value="Investment">Investment</option></select>
+                        <select id="txFilterYear" class="config-input" onchange="onTxFilterChange()" style="width:auto; min-width:100px;"><option value="">All Years</option></select>
+                        <select id="txFilterMonth" class="config-input" onchange="onTxFilterChange()" style="width:auto; min-width:120px;"><option value="">All Months</option></select>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table>
@@ -710,6 +701,7 @@
                         <tbody id="transactionTable"></tbody>
                     </table>
                 </div>
+                <div id="txPagination" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:16px;"></div>
             </div>
         </div>
 
@@ -720,7 +712,7 @@
                     <i class="fas fa-tags"></i> Category &amp; Subcategory
                 </button>
                 <button class="nav-tab" onclick="switchAdminSection('fixedexpense')" data-admin-tab="fixedexpense">
-                    <i class="fas fa-arrows-rotate"></i> Fixed Expenses
+                    <i class="fas fa-arrows-rotate"></i> Fixed Items
                 </button>
                 <button class="nav-tab" onclick="switchAdminSection('networth')" data-admin-tab="networth">
                     <i class="fas fa-gem"></i> Net Worth
@@ -762,21 +754,21 @@
                         </table>
                     </div>
                 </div>
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fas fa-arrows-rotate"></i> Fixed Investments / SIPs <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(recurring, with optional annual step-up)</span></div>
+                        <button class="btn btn-primary" onclick="openRecurringModal('Investment')"><i class="fas fa-plus"></i> Add Fixed Investment</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Category</th><th>Amount</th><th>Step-up</th><th>Frequency</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody id="recurringInvestmentTable"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <div class="admin-section" id="adminSection-networth" style="display:none;">
-                <div class="panel">
-                    <div class="panel-header"><div class="panel-title"><i class="fas fa-piggy-bank"></i> Opening Balances</div></div>
-                    <div style="margin-bottom: 16px; padding: 14px 18px; background: rgba(99,102,241,0.05); border-radius: 12px; border: 1px solid rgba(99,102,241,0.15); color: var(--text-muted); font-size: 0.85rem;">
-                        <i class="fas fa-circle-info" style="color: var(--primary);"></i>
-                        If you already had savings or investments before you started logging transactions here, enter them below. They're added on top of whatever your logged transactions add up to, on the Dashboard's Total Savings and Total Investment cards.
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group"><label>Pre-existing Savings (Rs.)</label><input type="number" class="config-input" id="openingSavingsInput" value="0"></div>
-                        <div class="form-group"><label>Pre-existing Investments (Rs.)</label><input type="number" class="config-input" id="openingInvestmentsInput" value="0"></div>
-                    </div>
-                    <button class="btn btn-primary" onclick="saveOpeningBalances()"><i class="fas fa-save"></i> Save Opening Balances</button>
-                </div>
                 <div class="chart-grid">
                     <div class="panel">
                         <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-pie"></i> Asset Allocation</div></div>
@@ -788,10 +780,13 @@
                     </div>
                 </div>
                 <div class="panel">
-                    <div class="panel-header"><div class="panel-title"><i class="fas fa-gem"></i> Asset Portfolio</div></div>
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fas fa-gem"></i> Asset Portfolio</div>
+                        <button class="btn btn-primary" onclick="addAssetEntry()"><i class="fas fa-plus"></i> Add Asset</button>
+                    </div>
                     <div class="table-container">
                         <table>
-                            <thead><tr><th>Asset</th><th>Category</th><th>Purchase Value</th><th>Current Value</th><th>Gain/Loss</th><th>Return %</th><th>Liquid?</th></tr></thead>
+                            <thead><tr><th>Asset</th><th>Category</th><th>Purchase Value</th><th>Current Value</th><th>Gain/Loss</th><th>Return %</th><th>Liquid?</th><th>Actions</th></tr></thead>
                             <tbody id="assetTable"></tbody>
                         </table>
                     </div>
@@ -923,11 +918,26 @@
         <!-- REPORTS TAB -->
         <div class="tab-pane" id="tab-reports">
             <div class="panel">
-                <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-bar"></i> Yearly Financial Report</div></div>
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-chart-bar"></i> Yearly Financial Report</div>
+                    <button class="btn btn-success" onclick="downloadFinancialReport()"><i class="fas fa-download"></i> Download Report</button>
+                </div>
                 <div class="table-container">
                     <table>
                         <thead><tr><th>Year</th><th>Income</th><th>Expenses</th><th>Savings</th><th>Investments</th><th>EMI Paid</th><th>Savings Rate</th><th>Expense Rate</th><th>Invest Rate</th><th>Transactions</th></tr></thead>
                         <tbody id="yearlyReportTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-calendar-days"></i> Monthly Financial Report</div>
+                    <button class="btn btn-success" onclick="downloadFinancialReport()"><i class="fas fa-download"></i> Download Report</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Month</th><th>Income</th><th>Expenses</th><th>Savings</th><th>Investments</th><th>EMI Paid</th><th>Savings Rate</th><th>Expense Rate</th><th>Invest Rate</th><th>Transactions</th></tr></thead>
+                        <tbody id="monthlyReportTable"></tbody>
                     </table>
                 </div>
             </div>
@@ -942,19 +952,27 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- AI INSIGHTS TAB -->
-        <div class="tab-pane" id="tab-insights">
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title"><i class="fas fa-robot"></i> AI Financial Insights</div>
-                    <span style="color:var(--text-muted); font-size:0.85rem;"><i class="fas fa-wand-magic-sparkles"></i> Auto-generated</span>
-                </div>
-                <div id="aiRecommendations"></div>
+    <!-- AI Insights Quick-Access Modal -->
+    <div class="modal-overlay" id="insightsModal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fas fa-wand-magic-sparkles" style="color:var(--purple);"></i> AI Financial Insights</div>
+                <button class="modal-close" onclick="closeAIInsightsModal()">&times;</button>
             </div>
-            <div class="panel">
-                <div class="panel-header"><div class="panel-title"><i class="fas fa-magnifying-glass-chart"></i> Category Analysis</div></div>
-                <div class="analysis-grid" id="analysisGrid"></div>
+            <div style="max-height:75vh; overflow-y:auto; padding-right:4px;">
+                <div class="panel" style="margin-bottom:20px;">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fas fa-robot"></i> AI Financial Insights</div>
+                        <span style="color:var(--text-muted); font-size:0.85rem;"><i class="fas fa-wand-magic-sparkles"></i> Auto-generated</span>
+                    </div>
+                    <div id="aiRecommendations"></div>
+                </div>
+                <div class="panel" style="margin-bottom:0;">
+                    <div class="panel-header"><div class="panel-title"><i class="fas fa-magnifying-glass-chart"></i> Category Analysis</div></div>
+                    <div class="analysis-grid" id="analysisGrid"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1148,9 +1166,14 @@ let expenseSubcatEntries = [];
 let expenseCatEntries = [];
 let expenseSelectedCategory = '';
 let investmentFiltersInitialized = false;
+let investmentSelectedCategory = '';
+let investmentFixedOnlyFilter = false;
+let investmentCatEntries = [];
 let editingType = null;
 let currentTab = 'overview';
 let currentAdminSection = 'category';
+let txCurrentPage = 1;
+let txPageSize = 25;
 
 // ===== CORE DATA FUNCTIONS =====
 function saveState() {
@@ -1469,6 +1492,23 @@ function simulateLoanAmortization(loan) {
 // Current status (as of `today`) for a loan, taking any recorded prepayments into account.
 // Falls back to the plain closed-form amortization (calcOutstandingBalance) when a loan has no
 // prepayments, so behavior for the common case is unchanged; only prepaid loans use the simulation.
+// Number of months left to fully pay off a loan, computed directly from its CURRENT outstanding
+// balance, EMI, and rate (reducing-balance formula) — rather than from tenure minus elapsed time.
+// This stays accurate even when `outstanding` was manually edited or adjusted outside of the
+// regular EMI schedule (e.g. lump-sum payments not logged as tracked prepayments), which a purely
+// time-based calculation would miss.
+function remainingMonthsFromOutstanding(loan) {
+    const outstanding = loan.outstanding || 0;
+    const emi = loan.emi || 0;
+    if (outstanding <= 0) return 0;
+    if (emi <= 0) return 0;
+    const r = (loan.rate || 0) / 12 / 100;
+    if (r === 0) return Math.ceil(outstanding / emi);
+    const ratio = 1 - (outstanding * r) / emi;
+    if (ratio <= 0) return loan.tenure || 0; // EMI too small to ever amortize this balance at this rate
+    return Math.max(0, Math.ceil(-Math.log(ratio) / Math.log(1 + r)));
+}
+
 function getLoanStatus(loan, today) {
     if (!loan.prepayments || loan.prepayments.length === 0) {
         const monthsElapsed = loanMonthsElapsed(loan, today);
@@ -1546,10 +1586,15 @@ function getMonthlyFinanceSeries() {
         if (t.type !== 'Income' && t.type !== 'Expense' && t.type !== 'Investment') return;
         const d = parseDate(t.date);
         const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-        if (!map[key]) map[key] = { key, label: getMonthYear(t.date), income: 0, expenses: 0, investments: 0 };
+        if (!map[key]) map[key] = { key, label: getMonthYear(t.date), income: 0, expenses: 0, investments: 0, loan: 0 };
         const amount = parseFloat(t.amount) || 0;
         if (t.type === 'Income') map[key].income += amount;
-        else if (t.type === 'Expense') map[key].expenses += amount;
+        else if (t.type === 'Expense') {
+            map[key].expenses += amount;
+            // Loan-linked (EMI) expenses are also tracked as their own figure so the trend
+            // chart can plot Loan as a separate line, even though it's still part of Expense.
+            if (t.loanId) map[key].loan += amount;
+        }
         else map[key].investments += amount;
     });
     return Object.values(map)
@@ -1630,17 +1675,32 @@ function getStatus(usedPct) {
 function getPriorityClass(p) { return 'priority-' + (p || 'optional'); }
 
 function populateFilters() {
-    const catSelect = document.getElementById('txFilterCategory');
-    if (catSelect) {
-        const cats = [...new Set(state.transactions.map(t => t.category))].sort();
-        catSelect.innerHTML = '<option value="">All</option>' + cats.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+    const yearSelect = document.getElementById('txFilterYear');
+    if (yearSelect) {
+        const prevVal = yearSelect.value;
+        const years = [...new Set(state.transactions.map(t => parseDate(t.date).getFullYear()))].sort((a, b) => a - b);
+        yearSelect.innerHTML = '<option value="">All Years</option>' + years.map(y => '<option value="' + y + '">' + y + '</option>').join('');
+        if (prevVal && years.map(String).includes(prevVal)) yearSelect.value = prevVal;
     }
     const monthSelect = document.getElementById('txFilterMonth');
     if (monthSelect) {
-        const months = [...new Set(state.transactions.map(t => getMonthYear(t.date)))].sort();
-        monthSelect.innerHTML = '<option value="">All</option>' + months.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+        const filterYear = yearSelect?.value || '';
+        const prevVal = monthSelect.value;
+        let months = [...new Set(state.transactions.map(t => getMonthYear(t.date)))];
+        if (filterYear) months = months.filter(m => m.endsWith(' ' + filterYear));
+        months.sort((a, b) => monthLabelToKey(a).localeCompare(monthLabelToKey(b)));
+        monthSelect.innerHTML = '<option value="">All Months</option>' + months.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+        if (prevVal && months.includes(prevVal)) monthSelect.value = prevVal;
     }
     populateOverviewSelectors();
+}
+
+// Year and Month filters interact: switching year should refresh which months are offered
+// (and drop a month that no longer belongs to the newly picked year), then re-render page 1.
+function onTxFilterChange() {
+    populateFilters();
+    txCurrentPage = 1;
+    renderTransactions();
 }
 
 function renderAll() {
@@ -1663,7 +1723,6 @@ function renderAll() {
     renderInsights();
     renderAmortizationDropdown();
     renderAmortization();
-    renderBudgetUtilization();
     renderChartsForTab(currentTab);
 }
 
@@ -1799,21 +1858,36 @@ function renderDashboard() {
         incomePctEl.className = 'card-change ' + (incomePct >= 100 ? 'text-green' : 'text-yellow');
     }
 
-    // Budget utilization
+    // Budget utilization / Budget Breakdown ring grid. The month dropdown includes an
+    // "All Months" option (value "All") that rolls every month of the selected year up
+    // into one yearly utilization figure per category.
     const utilContainer = document.getElementById('overviewUtilization');
     if (utilContainer) {
         const utilMonthSel = document.getElementById('dbUtilMonthSelect')?.value;
         const utilYearSel = document.getElementById('dbUtilYearSelect')?.value;
-        const utilMonth = (utilMonthSel && utilYearSel) ? (utilMonthSel + ' ' + utilYearSel) : currentMonth;
+        const monthNamesForUtil = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        let utilMonthList, safeMonthArg;
+        if (utilMonthSel === 'All' && utilYearSel) {
+            utilMonthList = monthNamesForUtil.map(m => m + ' ' + utilYearSel);
+            safeMonthArg = utilYearSel; // year-only string signals "yearly" to showCategoryDetail
+        } else if (utilMonthSel && utilYearSel) {
+            utilMonthList = [utilMonthSel + ' ' + utilYearSel];
+            safeMonthArg = utilMonthList[0];
+        } else {
+            utilMonthList = [currentMonth];
+            safeMonthArg = currentMonth;
+        }
         const nodes = state.categories.filter(c => (c.targetPct || 0) > 0).map(c => {
-            const budget = getBudgetAmount(c);
-            const actual = getActualForCategoryClassified(c, [utilMonth]);
+            const budget = utilMonthList.reduce((s, m) => s + getBudgetAmount(c, m), 0);
+            const actual = getActualForCategoryClassified(c, utilMonthList);
             const usedPct = budget > 0 ? (actual / budget) * 100 : 0;
             const barColor = usedPct < 90 ? 'var(--secondary)' : usedPct < 100 ? 'var(--warning)' : 'var(--danger)';
+            const accent = getCategoryAccentColor(c.name);
+            const icon = getBudgetCategoryIcon(c);
             const title = c.name + ': ' + fmt(actual) + ' / ' + fmt(budget) + ' (' + usedPct.toFixed(1) + '%) - click for details';
             const safeName = c.name.replace(/'/g, "\\'");
-            const safeMonth = utilMonth.replace(/'/g, "\\'");
-            return '<div class="util-node" style="--pct:' + Math.min(usedPct, 100) + '; --ring-color:' + barColor + '; cursor:pointer;" title="' + title.replace(/"/g, '&quot;') + '" onclick="showCategoryDetail(\'' + safeName + '\', \'' + safeMonth + '\')"><div class="util-node-ring"><span class="util-node-pct">' + usedPct.toFixed(0) + '%</span></div><div class="util-node-name">' + c.name + '</div></div>';
+            const safeMonth = safeMonthArg.replace(/'/g, "\\'");
+            return '<div class="util-node" style="--pct:' + Math.min(usedPct, 100) + '; --ring-color:' + barColor + '; --accent-color:' + accent + '; --node-tint:' + accent + '26; cursor:pointer;" title="' + title.replace(/"/g, '&quot;') + '" onclick="showCategoryDetail(\'' + safeName + '\', \'' + safeMonth + '\')"><div class="util-node-ring"><div class="util-node-icon"><i class="fas ' + icon + '"></i></div></div><div class="util-node-pct">' + usedPct.toFixed(0) + '%</div><div class="util-node-name">' + c.name + '</div></div>';
         });
         utilContainer.innerHTML = nodes.length
             ? '<div class="util-node-grid">' + nodes.join('') + '</div>'
@@ -1852,25 +1926,68 @@ function renderDashboard() {
 
 function renderTransactions() {
     const tbody = document.getElementById('transactionTable');
+    const pager = document.getElementById('txPagination');
     if (!tbody) return;
     const filterType = document.getElementById('txFilterType')?.value || '';
-    const filterCat = document.getElementById('txFilterCategory')?.value || '';
+    const filterYear = document.getElementById('txFilterYear')?.value || '';
     const filterMonth = document.getElementById('txFilterMonth')?.value || '';
 
     let filtered = [...state.transactions].sort((a, b) => parseDate(b.date) - parseDate(a.date));
     if (filterType) filtered = filtered.filter(t => t.type === filterType);
-    if (filterCat) filtered = filtered.filter(t => t.category === filterCat);
+    if (filterYear) filtered = filtered.filter(t => parseDate(t.date).getFullYear().toString() === filterYear);
     if (filterMonth) filtered = filtered.filter(t => getMonthYear(t.date) === filterMonth);
 
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><i class="fas fa-list"></i><p>No transactions found</p></div></td></tr>';
+        if (pager) pager.innerHTML = '';
         return;
     }
 
-    tbody.innerHTML = filtered.map(t => {
+    // Pagination: clamp the current page in case filters just shrank the result set
+    const totalPages = Math.max(1, Math.ceil(filtered.length / txPageSize));
+    if (txCurrentPage > totalPages) txCurrentPage = totalPages;
+    if (txCurrentPage < 1) txCurrentPage = 1;
+    const startIdx = (txCurrentPage - 1) * txPageSize;
+    const pageRows = filtered.slice(startIdx, startIdx + txPageSize);
+
+    tbody.innerHTML = pageRows.map(t => {
         const pctSalary = state.salary > 0 ? (t.amount / state.salary) * 100 : 0;
         return '<tr><td><strong>' + t.id + '</strong></td><td>' + parseDate(t.date).toLocaleDateString('en-IN') + '</td><td><span class="badge ' + (t.type==='Income'?'badge-success':t.type==='Investment'?'badge-primary':'badge-danger') + '">' + t.type + '</span></td><td>' + t.category + '</td><td>' + (t.subcategory || '-') + '</td><td style="font-weight:700;">' + fmt(t.amount) + '</td><td>' + pctSalary.toFixed(1) + '%</td><td>' + t.payment + '</td><td>' + t.member + '</td><td><div class="action-btns"><button class="action-btn edit" onclick="editTransaction(\'' + t.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteTransaction(\'' + t.id + '\')"><i class="fas fa-trash"></i></button></div></td></tr>';
     }).join('');
+
+    if (pager) {
+        const rangeStart = startIdx + 1;
+        const rangeEnd = Math.min(startIdx + txPageSize, filtered.length);
+        let pageButtons = '';
+        for (let p = 1; p <= totalPages; p++) {
+            // Keep the pager compact on long lists: always show first, last, current +/-1, else "..."
+            if (p === 1 || p === totalPages || Math.abs(p - txCurrentPage) <= 1) {
+                pageButtons += '<button class="btn ' + (p === txCurrentPage ? 'btn-primary' : 'btn-secondary') + '" style="padding:6px 12px; font-size:0.8rem; min-width:36px;" onclick="goToTxPage(' + p + ')">' + p + '</button>';
+            } else if (p === 2 || p === totalPages - 1) {
+                pageButtons += '<span style="color:var(--text-muted); padding:0 4px;">...</span>';
+            }
+        }
+        pager.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted);">Showing ' + rangeStart + '-' + rangeEnd + ' of ' + filtered.length + '</div>'
+            + '<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">'
+            + '<button class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem;" onclick="goToTxPage(' + (txCurrentPage - 1) + ')" ' + (txCurrentPage === 1 ? 'disabled' : '') + '><i class="fas fa-chevron-left"></i></button>'
+            + pageButtons
+            + '<button class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem;" onclick="goToTxPage(' + (txCurrentPage + 1) + ')" ' + (txCurrentPage === totalPages ? 'disabled' : '') + '><i class="fas fa-chevron-right"></i></button>'
+            + '</div>'
+            + '<select id="txPageSizeSelect" class="config-input" onchange="setTxPageSize(this.value)" style="width:auto; min-width:110px; padding:6px 10px; font-size:0.8rem;">'
+            + [10, 25, 50, 100].map(n => '<option value="' + n + '" ' + (n === txPageSize ? 'selected' : '') + '>' + n + ' / page</option>').join('')
+            + '</select>';
+    }
+}
+
+function goToTxPage(page) {
+    txCurrentPage = page;
+    renderTransactions();
+}
+
+function setTxPageSize(size) {
+    txPageSize = parseInt(size) || 25;
+    txCurrentPage = 1;
+    renderTransactions();
 }
 
 function syncCategoriesWithConfig() {
@@ -2316,20 +2433,33 @@ function renderNetWorth() {
 
     const assetTbody = document.getElementById('assetTable');
     if (assetTbody) {
-        assetTbody.innerHTML = state.assets.map(a => {
-            const gain = a.currentValue - a.purchaseValue;
-            const ret = a.purchaseValue > 0 ? (gain / a.purchaseValue) * 100 : 0;
-            return '<tr><td><strong>' + a.name + '</strong></td><td>' + a.category + '</td><td>' + fmt(a.purchaseValue) + '</td><td>' + fmt(a.currentValue) + '</td><td style="color:' + (gain >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(gain) + '</td><td>' + ret.toFixed(1) + '%</td><td>' + (a.liquid ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-warning">No</span>') + '</td></tr>';
-        }).join('') + '<tr style="font-weight:700; background:rgba(99,102,241,0.1);"><td colspan="2">TOTAL ASSETS</td><td>' + fmt(state.assets.reduce((s,a) => s+a.purchaseValue,0)) + '</td><td>' + fmt(state.assets.reduce((s,a) => s+a.currentValue,0)) + '</td><td>' + fmt(state.assets.reduce((s,a) => s+(a.currentValue-a.purchaseValue),0)) + '</td><td colspan="2"></td></tr>';
+        if (state.assets.length === 0) {
+            assetTbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-gem"></i><p>No assets added yet</p></div></td></tr>';
+        } else {
+            assetTbody.innerHTML = state.assets.map((a, idx) => {
+                const gain = a.currentValue - a.purchaseValue;
+                const ret = a.purchaseValue > 0 ? (gain / a.purchaseValue) * 100 : 0;
+                return '<tr>' +
+                    '<td><input type="text" class="config-input" value="' + a.name + '" onchange="updateAssetField(' + idx + ', \'name\', this.value)" style="min-width:140px;"></td>' +
+                    '<td><input type="text" class="config-input" value="' + a.category + '" onchange="updateAssetField(' + idx + ', \'category\', this.value)" style="min-width:120px;"></td>' +
+                    '<td><input type="number" class="config-input" value="' + a.purchaseValue + '" onchange="updateAssetField(' + idx + ', \'purchaseValue\', parseFloat(this.value)||0)" style="min-width:110px;"></td>' +
+                    '<td><input type="number" class="config-input" value="' + a.currentValue + '" onchange="updateAssetField(' + idx + ', \'currentValue\', parseFloat(this.value)||0)" style="min-width:110px;"></td>' +
+                    '<td style="color:' + (gain >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(gain) + '</td>' +
+                    '<td>' + ret.toFixed(1) + '%</td>' +
+                    '<td><select class="config-input" onchange="updateAssetField(' + idx + ', \'liquid\', this.value === \'true\')"><option value="true" ' + (a.liquid ? 'selected' : '') + '>Yes</option><option value="false" ' + (!a.liquid ? 'selected' : '') + '>No</option></select></td>' +
+                    '<td><button class="action-btn delete" onclick="deleteAsset(' + idx + ')" title="Delete"><i class="fas fa-trash"></i></button></td>' +
+                '</tr>';
+            }).join('') + '<tr style="font-weight:700; background:rgba(99,102,241,0.1);"><td colspan="2">TOTAL ASSETS</td><td>' + fmt(state.assets.reduce((s,a) => s+a.purchaseValue,0)) + '</td><td>' + fmt(state.assets.reduce((s,a) => s+a.currentValue,0)) + '</td><td>' + fmt(state.assets.reduce((s,a) => s+(a.currentValue-a.purchaseValue),0)) + '</td><td colspan="3"></td></tr>';
+        }
     }
 
     const liabTbody = document.getElementById('liabilityTable');
     if (liabTbody) {
-        liabTbody.innerHTML = state.loans.map(l => {
-            const today = new Date();
-            const monthsRemaining = getLoanStatus(l, today).monthsRemaining;
+        const activeLoans = state.loans.filter(l => (l.outstanding || 0) > 0);
+        liabTbody.innerHTML = activeLoans.map(l => {
+            const monthsRemaining = remainingMonthsFromOutstanding(l);
             return '<tr><td><strong>' + l.name + '</strong></td><td>' + l.type + '</td><td>' + fmt(l.principal) + '</td><td>' + fmt(l.outstanding) + '</td><td>' + fmt(l.emi) + '</td><td>' + l.rate + '%</td><td>' + monthsRemaining + '</td></tr>';
-        }).join('') + '<tr style="font-weight:700; background:rgba(239,68,68,0.1);"><td colspan="2">TOTAL LIABILITIES</td><td>' + fmt(state.loans.reduce((s,l) => s+l.principal,0)) + '</td><td>' + fmt(state.loans.reduce((s,l) => s+l.outstanding,0)) + '</td><td>' + fmt(state.loans.reduce((s,l) => s+l.emi,0)) + '</td><td colspan="2"></td></tr>';
+        }).join('') + '<tr style="font-weight:700; background:rgba(239,68,68,0.1);"><td colspan="2">TOTAL LIABILITIES</td><td>' + fmt(activeLoans.reduce((s,l) => s+l.principal,0)) + '</td><td>' + fmt(activeLoans.reduce((s,l) => s+l.outstanding,0)) + '</td><td>' + fmt(activeLoans.reduce((s,l) => s+l.emi,0)) + '</td><td colspan="2"></td></tr>';
     }
 }
 
@@ -2337,6 +2467,32 @@ function renderNetWorth() {
 // added on top of the transaction-derived totals on the Dashboard's Total Savings / Total
 // Investment cards, so those cards reflect the person's real full position, not just what's
 // been tracked in this app.
+function addAssetEntry() {
+    state.assets.push({ name: 'New Asset', category: 'Other', purchaseValue: 0, currentValue: 0, liquid: false });
+    saveState();
+    renderNetWorth();
+    renderNetWorthCharts();
+    showToast('Asset added — edit its details below', 'success');
+}
+
+function updateAssetField(index, field, value) {
+    const asset = state.assets[index];
+    if (!asset) return;
+    asset[field] = value;
+    saveState();
+    renderNetWorth();
+    renderNetWorthCharts();
+}
+
+function deleteAsset(index) {
+    if (!confirm('Delete this asset?')) return;
+    state.assets.splice(index, 1);
+    saveState();
+    renderNetWorth();
+    renderNetWorthCharts();
+    showToast('Asset deleted', 'success');
+}
+
 function saveOpeningBalances() {
     const savings = parseFloat(document.getElementById('openingSavingsInput')?.value) || 0;
     const investments = parseFloat(document.getElementById('openingInvestmentsInput')?.value) || 0;
@@ -2417,7 +2573,7 @@ function renderReports() {
         const year = parseDate(t.date).getFullYear();
         if (!yearData[year]) yearData[year] = { income: 0, expenses: 0, investments: 0, emi: 0, count: 0 };
         if (t.type === 'Income') yearData[year].income += t.amount;
-        else if (t.type === 'Expense') yearData[year].expenses += t.amount;
+        else if (t.type === 'Expense') { yearData[year].expenses += t.amount; if (t.loanId) yearData[year].emi += t.amount; }
         else if (t.type === 'Investment') yearData[year].investments += t.amount;
         yearData[year].count++;
     });
@@ -2431,6 +2587,21 @@ function renderReports() {
         const investRate = d.income > 0 ? (d.investments / d.income) * 100 : 0;
         return '<tr><td><strong>' + y + '</strong></td><td>' + fmt(d.income) + '</td><td>' + fmt(d.expenses) + '</td><td>' + fmt(savings) + '</td><td>' + fmt(d.investments) + '</td><td>' + fmt(d.emi) + '</td><td>' + savingsRate.toFixed(1) + '%</td><td>' + expenseRate.toFixed(1) + '%</td><td>' + investRate.toFixed(1) + '%</td><td>' + d.count + '</td></tr>';
     }).join('');
+
+    // Monthly Financial Report
+    const monthTbody = document.getElementById('monthlyReportTable');
+    if (monthTbody) {
+        const monthData = getMonthlyReportData();
+        const months = Object.keys(monthData).sort((a, b) => monthData[a].sortKey - monthData[b].sortKey);
+        monthTbody.innerHTML = months.map(m => {
+            const d = monthData[m];
+            const savings = d.income - d.expenses - d.investments;
+            const savingsRate = d.income > 0 ? (savings / d.income) * 100 : 0;
+            const expenseRate = d.income > 0 ? (d.expenses / d.income) * 100 : 0;
+            const investRate = d.income > 0 ? (d.investments / d.income) * 100 : 0;
+            return '<tr><td><strong>' + m + '</strong></td><td>' + fmt(d.income) + '</td><td>' + fmt(d.expenses) + '</td><td>' + fmt(savings) + '</td><td>' + fmt(d.investments) + '</td><td>' + fmt(d.emi) + '</td><td>' + savingsRate.toFixed(1) + '%</td><td>' + expenseRate.toFixed(1) + '%</td><td>' + investRate.toFixed(1) + '%</td><td>' + d.count + '</td></tr>';
+        }).join('');
+    }
 
     // Yearly trend chart
     renderChart('yearlyTrendChart', 'bar', {
@@ -2453,6 +2624,103 @@ function renderReports() {
         labels: Object.keys(catData),
         datasets: [{ data: Object.values(catData), backgroundColor: colors, borderWidth: 0 }]
     }, { plugins: { legend: { position: 'right', labels: { color: '#94a3b8', padding: 15 } } } });
+}
+
+// Aggregates every transaction into per-month totals (Income/Expenses/Investments/EMI/count),
+// keyed by the same "Mon YYYY" label used elsewhere in the app. Shared by the Monthly Financial
+// Report table and the Excel export so both stay in sync.
+function getMonthlyReportData() {
+    const monthData = {};
+    state.transactions.forEach(t => {
+        const my = getMonthYear(t.date);
+        if (!monthData[my]) {
+            const d = parseDate(t.date);
+            monthData[my] = { income: 0, expenses: 0, investments: 0, emi: 0, count: 0, sortKey: d.getFullYear() * 100 + (d.getMonth() + 1) };
+        }
+        if (t.type === 'Income') monthData[my].income += t.amount;
+        else if (t.type === 'Expense') { monthData[my].expenses += t.amount; if (t.loanId) monthData[my].emi += t.amount; }
+        else if (t.type === 'Investment') monthData[my].investments += t.amount;
+        monthData[my].count++;
+    });
+    return monthData;
+}
+
+function downloadFinancialReport() {
+    if (typeof XLSX === 'undefined') { showToast('Excel library failed to load', 'error'); return; }
+    if (!state.transactions || state.transactions.length === 0) { showToast('No data to export', 'error'); return; }
+
+    const rateRow = (income, expenses, investments, savings) => ({
+        savingsRate: income > 0 ? +((savings / income) * 100).toFixed(1) : 0,
+        expenseRate: income > 0 ? +((expenses / income) * 100).toFixed(1) : 0,
+        investRate: income > 0 ? +((investments / income) * 100).toFixed(1) : 0
+    });
+
+    // Yearly sheet
+    const yearData = {};
+    state.transactions.forEach(t => {
+        const year = parseDate(t.date).getFullYear();
+        if (!yearData[year]) yearData[year] = { income: 0, expenses: 0, investments: 0, emi: 0, count: 0 };
+        if (t.type === 'Income') yearData[year].income += t.amount;
+        else if (t.type === 'Expense') { yearData[year].expenses += t.amount; if (t.loanId) yearData[year].emi += t.amount; }
+        else if (t.type === 'Investment') yearData[year].investments += t.amount;
+        yearData[year].count++;
+    });
+    const years = Object.keys(yearData).sort();
+    const yearlyRows = years.map(y => {
+        const d = yearData[y];
+        const savings = d.income - d.expenses - d.investments;
+        const r = rateRow(d.income, d.expenses, d.investments, savings);
+        return {
+            'Year': y, 'Income (Rs.)': Math.round(d.income), 'Expenses (Rs.)': Math.round(d.expenses),
+            'Savings (Rs.)': Math.round(savings), 'Investments (Rs.)': Math.round(d.investments),
+            'EMI Paid (Rs.)': Math.round(d.emi), 'Savings Rate %': r.savingsRate,
+            'Expense Rate %': r.expenseRate, 'Invest Rate %': r.investRate, 'Transactions': d.count
+        };
+    });
+
+    // Monthly sheet
+    const monthData = getMonthlyReportData();
+    const months = Object.keys(monthData).sort((a, b) => monthData[a].sortKey - monthData[b].sortKey);
+    const monthlyRows = months.map(m => {
+        const d = monthData[m];
+        const savings = d.income - d.expenses - d.investments;
+        const r = rateRow(d.income, d.expenses, d.investments, savings);
+        return {
+            'Month': m, 'Income (Rs.)': Math.round(d.income), 'Expenses (Rs.)': Math.round(d.expenses),
+            'Savings (Rs.)': Math.round(savings), 'Investments (Rs.)': Math.round(d.investments),
+            'EMI Paid (Rs.)': Math.round(d.emi), 'Savings Rate %': r.savingsRate,
+            'Expense Rate %': r.expenseRate, 'Invest Rate %': r.investRate, 'Transactions': d.count
+        };
+    });
+
+    // Category breakdown for the current year
+    const currentYear = new Date().getFullYear();
+    const catData = {};
+    state.transactions.filter(t => parseDate(t.date).getFullYear() === currentYear && t.type === 'Expense').forEach(t => {
+        catData[t.category] = (catData[t.category] || 0) + t.amount;
+    });
+    const catTotal = Object.values(catData).reduce((s, v) => s + v, 0);
+    const categoryRows = Object.keys(catData).sort((a, b) => catData[b] - catData[a]).map(c => ({
+        'Category': c, 'Amount (Rs.)': Math.round(catData[c]),
+        '% of Total Expense': catTotal > 0 ? +((catData[c] / catTotal) * 100).toFixed(1) : 0
+    }));
+
+    const wb = XLSX.utils.book_new();
+
+    const wsYear = XLSX.utils.json_to_sheet(yearlyRows);
+    wsYear['!cols'] = [{wch:10},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, wsYear, 'Yearly Report');
+
+    const wsMonth = XLSX.utils.json_to_sheet(monthlyRows);
+    wsMonth['!cols'] = [{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, wsMonth, 'Monthly Report');
+
+    const wsCat = XLSX.utils.json_to_sheet(categoryRows);
+    wsCat['!cols'] = [{wch:22},{wch:14},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, wsCat, 'Category Breakdown ' + currentYear);
+
+    XLSX.writeFile(wb, 'financial_report_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('Financial report downloaded!', 'success');
 }
 
 function renderInsights() {
@@ -2642,33 +2910,38 @@ function removeLoanPrepayment(loanId, idx) {
 
 function renderChartsForTab(tabName) {
     if (tabName === 'overview') {
-        const currentMonth = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-        const incomeCats = {};
-        state.transactions.filter(t => t.type === 'Income' && getMonthYear(t.date) === currentMonth).forEach(t => { incomeCats[t.category] = (incomeCats[t.category] || 0) + t.amount; });
-        if (Object.keys(incomeCats).length === 0) incomeCats['Salary'] = state.salary;
+        // Budget vs Actual is always a full-year rollup, driven by the year picked in the
+        // Budget Breakdown section right below it (falls back to the current year).
+        const monthNamesForChart = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const chartYear = document.getElementById('dbUtilYearSelect')?.value || String(new Date().getFullYear());
+        const chartYearMonths = monthNamesForChart.map(m => m + ' ' + chartYear);
+        const allCats = state.categories;
 
-        renderChart('incomePieChart', 'doughnut', {
-            labels: Object.keys(incomeCats),
-            datasets: [{ data: Object.values(incomeCats), backgroundColor: ['#6366f1','#10b981','#f59e0b','#3b82f6','#ec4899'], borderWidth: 0, hoverOffset: 8 }]
-        }, { cutout: '65%', plugins: { legend: { position: 'right', labels: { color: '#94a3b8', padding: 15 } } } });
+        // Horizontal bars + a container that grows with the category count, so showing
+        // *every* category stays readable instead of squeezing labels on a fixed-width x-axis.
+        const budgetChartContainer = document.getElementById('budgetBarChartContainer');
+        if (budgetChartContainer) budgetChartContainer.style.height = Math.max(300, allCats.length * 34) + 'px';
 
         renderChart('budgetBarChart', 'bar', {
-            labels: state.categories.slice(0, 10).map(c => c.name.length > 12 ? c.name.substring(0, 12) + '...' : c.name),
+            labels: allCats.map(c => c.name),
             datasets: [
-                { label: 'Budget', data: state.categories.slice(0, 10).map(c => getBudgetAmount(c, currentMonth)), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 6 },
-                { label: 'Actual', data: state.categories.slice(0, 10).map(c => getActualSpending(c.name, currentMonth)), backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 6 }
+                { label: 'Budget', data: allCats.map(c => chartYearMonths.reduce((s, m) => s + getBudgetAmount(c, m), 0)), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 6 },
+                { label: 'Actual', data: allCats.map(c => chartYearMonths.reduce((s, m) => s + getActualSpending(c.name, m), 0)), backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 6 }
             ]
-        }, { plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { y: { ticks: { color: '#94a3b8', callback: v => 'Rs.' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#94a3b8' }, grid: { display: false } } } });
+        }, { indexAxis: 'y', plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#94a3b8', callback: v => 'Rs.' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(255,255,255,0.03)' } }, y: { ticks: { color: '#94a3b8' }, grid: { display: false } } } });
 
-        // Income vs Expense vs Savings Trend: all three, month by month, in true chronological
-        // order (not alphabetical), so the shape of each line is trustworthy.
+        // Income vs Expense vs Savings vs Loan vs Investment: five lines, month by month, in
+        // true chronological order (not alphabetical), so the shape of each line is trustworthy.
+        // Loan is the EMI portion already counted inside Expense, shown separately for visibility.
         const savingsSeries = getMonthlyFinanceSeries();
         renderChart('savingsTrendChart', 'line', {
             labels: savingsSeries.map(m => m.label),
             datasets: [
                 { label: 'Income', data: savingsSeries.map(m => m.income), borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.08)', fill: false, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#6366f1' },
                 { label: 'Expense', data: savingsSeries.map(m => m.expenses), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', fill: false, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#ef4444' },
-                { label: 'Savings', data: savingsSeries.map(m => m.savings), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)', fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#10b981' }
+                { label: 'Savings', data: savingsSeries.map(m => m.savings), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)', fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#10b981' },
+                { label: 'Loan', data: savingsSeries.map(m => m.loan), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', fill: false, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#f59e0b' },
+                { label: 'Investment', data: savingsSeries.map(m => m.investments), borderColor: '#ec4899', backgroundColor: 'rgba(236,72,153,0.08)', fill: false, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#ec4899' }
             ]
         }, { plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { y: { ticks: { color: '#94a3b8', callback: v => 'Rs.' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#94a3b8' }, grid: { display: false } } } });
     }
@@ -2729,13 +3002,13 @@ function toggleYearlyOverview() {
     if (chevron) chevron.className = 'fas ' + (isHidden ? 'fa-chevron-up' : 'fa-chevron-down');
 }
 
-function toggleDbUtilPanel() {
-    const body = document.getElementById('dbUtilBody');
-    const chevron = document.getElementById('dbUtilChevron');
-    if (!body) return;
-    const isHidden = body.style.display === 'none';
-    body.style.display = isHidden ? '' : 'none';
-    if (chevron) chevron.className = 'fas ' + (isHidden ? 'fa-chevron-up' : 'fa-chevron-down');
+function openAIInsightsModal() {
+    renderInsights();
+    document.getElementById('insightsModal').classList.add('active');
+}
+
+function closeAIInsightsModal() {
+    document.getElementById('insightsModal').classList.remove('active');
 }
 
 function switchTab(tabName) {
@@ -2941,6 +3214,23 @@ function getInvestmentCategoryIcon(name) {
         if (rule.keywords.some(k => n.includes(k))) return rule.icon;
     }
     return 'fa-chart-pie';
+}
+
+// Deterministic accent color for a category, so its icon/card tint stays the
+// same every time (based on its name, not its position in the list).
+const CATEGORY_COLOR_PALETTE = ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316', '#14b8a6', '#a855f7', '#84cc16', '#ef4444'];
+function getCategoryAccentColor(name) {
+    const str = String(name || '');
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+    return CATEGORY_COLOR_PALETTE[hash % CATEGORY_COLOR_PALETTE.length];
+}
+
+// Picks an appropriate icon for a budget category, reusing the expense/investment
+// keyword mappings already used elsewhere in the app.
+function getBudgetCategoryIcon(category) {
+    if (!category) return 'fa-tag';
+    return category.classification === 'Investment' ? getInvestmentCategoryIcon(category.name) : getExpenseCategoryIcon(category.name);
 }
 
 function getDefaultGoalIcon(name) {
@@ -3883,11 +4173,46 @@ function renderExpenseCharts(filtered) {
     }, { cutout: '60%', plugins: { legend: { position: 'right', labels: { color: '#94a3b8', padding: 15 } } } });
 }
 
+function onInvestmentTopFilterChange() {
+    investmentSelectedCategory = '';
+    investmentFixedOnlyFilter = false;
+    renderInvestment();
+}
+
+function filterInvestmentByCategoryIndex(idx) {
+    const entry = investmentCatEntries[idx];
+    if (!entry) return;
+    const isActive = investmentSelectedCategory === entry.category;
+    investmentSelectedCategory = isActive ? '' : entry.category;
+    investmentFixedOnlyFilter = false;
+    renderInvestment();
+}
+
+function clearInvestmentFilter() {
+    investmentSelectedCategory = '';
+    investmentFixedOnlyFilter = false;
+    renderInvestment();
+}
+
+// Toggling the "Monthly Fixed Investment" card drills the Investment History table down to just
+// the recurring (Fixed Investment / SIP) transactions for the month currently in scope. Clicking
+// it again clears the lens. Selecting a category elsewhere clears it too.
+function toggleInvestmentFixedFilter() {
+    investmentFixedOnlyFilter = !investmentFixedOnlyFilter;
+    if (investmentFixedOnlyFilter) {
+        investmentSelectedCategory = '';
+        const monthSelect = document.getElementById('investmentFilterMonth');
+        if (monthSelect && !monthSelect.value) {
+            monthSelect.value = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+        }
+    }
+    renderInvestment();
+}
+
 function renderInvestment() {
     const tbody = document.getElementById('investmentTable');
     if (!tbody) return;
 
-    const filterCat = document.getElementById('investmentFilterCategory')?.value || '';
     const filterYear = document.getElementById('investmentFilterYear')?.value || '';
     let filterMonth = document.getElementById('investmentFilterMonth')?.value || '';
 
@@ -3910,40 +4235,57 @@ function renderInvestment() {
         if (monthSelectEl) monthSelectEl.value = '';
     }
 
-    let filtered = state.transactions.filter(t => t.type === 'Investment').sort((a, b) => parseDate(b.date) - parseDate(a.date));
-    if (filterCat) filtered = filtered.filter(t => t.category === filterCat);
-    if (filterYear) filtered = filtered.filter(t => parseDate(t.date).getFullYear().toString() === filterYear);
-    if (filterMonth) filtered = filtered.filter(t => getMonthYear(t.date) === filterMonth);
+    // Base filtered set — respects Year/Month only; drives the totals and category cards
+    let baseFiltered = state.transactions.filter(t => t.type === 'Investment').sort((a, b) => parseDate(b.date) - parseDate(a.date));
+    if (filterYear) baseFiltered = baseFiltered.filter(t => parseDate(t.date).getFullYear().toString() === filterYear);
+    if (filterMonth) baseFiltered = baseFiltered.filter(t => getMonthYear(t.date) === filterMonth);
 
-    // Single dynamic total card — reflects whatever filters are active
-    const filteredTotal = filtered.reduce((s, t) => s + t.amount, 0);
+    // If the selected category no longer exists in the current year/month scope, drop it
+    if (investmentSelectedCategory && !baseFiltered.some(t => t.category === investmentSelectedCategory)) {
+        investmentSelectedCategory = '';
+    }
+
+    let filtered = investmentSelectedCategory ? baseFiltered.filter(t => t.category === investmentSelectedCategory) : baseFiltered;
+    if (investmentFixedOnlyFilter) filtered = filtered.filter(t => t.recurringId);
+
+    // Total card always reflects the Year/Month scope, not the category/fixed drill-down below
+    const totalFiltered = baseFiltered.reduce((s, t) => s + t.amount, 0);
     let totalLabel = 'Total Invested';
     if (filterMonth) totalLabel = 'Invested - ' + filterMonth;
     else if (filterYear) totalLabel = 'Invested - ' + filterYear;
-    const totalSub = filterCat ? filterCat : 'All categories';
 
     const totalIncome = state.transactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0) || state.salary;
-    const investRate = totalIncome > 0 ? (filteredTotal / totalIncome) * 100 : 0;
+    const investRate = totalIncome > 0 ? (totalFiltered / totalIncome) * 100 : 0;
 
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     el('investmentTotalLabel', totalLabel);
-    el('investmentTotal', fmt(filteredTotal));
-    el('investmentTotalSub', totalSub);
+    el('investmentTotal', fmt(totalFiltered));
+    el('investmentTotalSub', 'All categories');
     el('investmentRate', investRate.toFixed(1) + '%');
 
     const allTimeTotal = state.transactions.filter(t => t.type === 'Investment').reduce((s, t) => s + t.amount, 0);
     el('investmentAllTime', fmt(allTimeTotal));
 
-    const currentMonthStr = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-    const fixedInvMonthTx = state.transactions.filter(t => t.type === 'Investment' && t.recurringId && getMonthYear(t.date) === currentMonthStr);
+    // The Fixed Investment card reflects whichever month is currently in view (the selected Month
+    // filter, or today's month when nothing is selected), same convention as the Expense tab.
+    const fixedScopeMonth = filterMonth || new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+    const fixedInvMonthTx = state.transactions.filter(t => t.type === 'Investment' && t.recurringId && getMonthYear(t.date) === fixedScopeMonth);
     const fixedInvMonthTotal = fixedInvMonthTx.reduce((s, t) => s + t.amount, 0);
     const fixedInvCount = (state.recurringItems || []).filter(r => r.type === 'Investment').length;
     const fixedInvPct = state.salary > 0 ? (fixedInvMonthTotal / state.salary) * 100 : 0;
     el('investmentFixedTotal', fmt(fixedInvMonthTotal));
     el('investmentFixedPct', fixedInvPct.toFixed(1) + '% of income');
-    el('investmentFixedSub', fixedInvCount + ' fixed item' + (fixedInvCount === 1 ? '' : 's') + ' · ' + currentMonthStr);
+    el('investmentFixedSub', fixedInvCount + ' fixed item' + (fixedInvCount === 1 ? '' : 's') + ' · ' + fixedScopeMonth);
+    const fixedCardEl = document.getElementById('investmentFixedCard');
+    if (fixedCardEl) fixedCardEl.style.outline = investmentFixedOnlyFilter ? '2px solid var(--primary)' : 'none';
 
-    if (filtered.length === 0) {
+    // Investment History stays hidden until a category card or the Fixed Investment card is clicked
+    const historyPanel = document.getElementById('investmentHistoryPanel');
+    if (historyPanel) historyPanel.style.display = (investmentSelectedCategory || investmentFixedOnlyFilter) ? '' : 'none';
+
+    if (!investmentSelectedCategory && !investmentFixedOnlyFilter) {
+        tbody.innerHTML = '';
+    } else if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-chart-line"></i><p>No investments found</p></div></td></tr>';
     } else {
         tbody.innerHTML = filtered.map(t => {
@@ -3956,32 +4298,47 @@ function renderInvestment() {
         }).join('');
     }
 
-    // Category-wise breakdown as small colorful nodal cards — respects active filters
+    // Category-wise breakdown as small colorful nodal cards — respects Year/Month filters only, so
+    // every category stays visible to click between; clicking one drills Investment History below.
     const breakdownGrid = document.getElementById('investmentCategoryBreakdown');
     if (breakdownGrid) {
         const catBreakdown = {};
-        filtered.forEach(t => { catBreakdown[t.category] = (catBreakdown[t.category] || 0) + t.amount; });
+        baseFiltered.forEach(t => { catBreakdown[t.category] = (catBreakdown[t.category] || 0) + t.amount; });
         const catEntries = Object.entries(catBreakdown).sort((a, b) => b[1] - a[1]);
+        investmentCatEntries = catEntries.map(([cat, amt]) => ({ category: cat, amount: amt }));
         if (catEntries.length === 0) {
             breakdownGrid.innerHTML = '<div class="empty-state"><i class="fas fa-chart-pie"></i><p>No investments for the selected filter</p></div>';
         } else {
             const colorClasses = ['budget', 'savings', 'networth', 'health', 'emi', 'salary', 'loan'];
             breakdownGrid.innerHTML = catEntries.map(([cat, amt], idx) => {
-                const pct = filteredTotal > 0 ? (amt / filteredTotal) * 100 : 0;
+                const pct = totalFiltered > 0 ? (amt / totalFiltered) * 100 : 0;
                 const colorClass = colorClasses[idx % colorClasses.length];
                 const icon = getInvestmentCategoryIcon(cat);
-                return '<div class="dash-card ' + colorClass + '"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div></div>';
+                const isActive = cat === investmentSelectedCategory;
+                return '<div class="dash-card ' + colorClass + '" style="cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterInvestmentByCategoryIndex(' + idx + ')" title="Click to view investment history for this category"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div>' + (isActive ? '<div class="card-sub"><strong style="color:var(--primary);">selected</strong></div>' : '') + '</div>';
             }).join('');
         }
     }
 
-    // Populate filters
-    const catSelect = document.getElementById('investmentFilterCategory');
-    if (catSelect) {
-        const cats = [...new Set(state.transactions.filter(t => t.type === 'Investment').map(t => t.category))].sort();
-        catSelect.innerHTML = '<option value="">All Categories</option>' + cats.map(c => '<option value="' + c + '">' + c + '</option>').join('');
-        if (filterCat) catSelect.value = filterCat;
+    // Active filter badge above Investment History
+    const filterBadgeEl = document.getElementById('investmentFilterBadge');
+    if (filterBadgeEl) {
+        if (investmentFixedOnlyFilter) {
+            filterBadgeEl.innerHTML = '<div class="import-summary-bar" style="margin-bottom:16px;">' +
+                '<div><i class="fas fa-arrows-rotate"></i> Showing only <strong>Fixed Investments</strong> for ' + fixedScopeMonth + ' — <strong>' + filtered.length + '</strong> transaction' + (filtered.length === 1 ? '' : 's') + '</div>' +
+                '<button class="btn btn-secondary" onclick="toggleInvestmentFixedFilter()"><i class="fas fa-xmark"></i> Clear</button>' +
+            '</div>';
+        } else if (investmentSelectedCategory) {
+            filterBadgeEl.innerHTML = '<div class="import-summary-bar" style="margin-bottom:16px;">' +
+                '<div><i class="fas fa-filter"></i> Showing only <strong>' + investmentSelectedCategory + '</strong> — <strong>' + filtered.length + '</strong> transaction' + (filtered.length === 1 ? '' : 's') + '</div>' +
+                '<button class="btn btn-secondary" onclick="clearInvestmentFilter()"><i class="fas fa-xmark"></i> Clear</button>' +
+            '</div>';
+        } else {
+            filterBadgeEl.innerHTML = '';
+        }
     }
+
+    // Populate Year/Month filters (Category is now a click-to-drill card, not a dropdown)
     const yearSelect = document.getElementById('investmentFilterYear');
     if (yearSelect) {
         const years = [...new Set(state.transactions.filter(t => t.type === 'Investment').map(t => parseDate(t.date).getFullYear()))].sort();
@@ -4166,34 +4523,10 @@ function renderYearlyOverview(selectId, containerId) {
         '</div>';
 }
 
-function renderBudgetUtilization() {
-    syncCategoriesWithConfig();
-    const select = document.getElementById('budgetUtilMonthSelect');
-    const container = document.getElementById('budgetUtilizationContent');
-    if (!container) return;
-
-    const selectedMonth = select ? select.value : '';
-    const currentMonth = selectedMonth || new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-
-    let utilHTML = '';
-    state.categories.forEach(c => {
-        const budget = getBudgetAmount(c, currentMonth);
-        const effPct = getEffectiveTargetPct(c, currentMonth);
-        const isOverridden = effPct !== (c.targetPct || 0);
-        const actual = getActualSpending(c.name, currentMonth);
-        const usedPct = budget > 0 ? (actual / budget) * 100 : 0;
-        const status = getStatus(usedPct);
-        const barColor = usedPct < 90 ? 'var(--secondary)' : usedPct < 100 ? 'var(--warning)' : 'var(--danger)';
-        const safeName = c.name.replace(/'/g, "\\'");
-        const safeMonth = currentMonth.replace(/'/g, "\\'");
-        utilHTML += '<div style="margin-bottom:18px;"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div style="display:flex; align-items:center; gap:10px;"><span style="font-weight:600; font-size:0.95rem; cursor:pointer; text-decoration:underline; text-decoration-color:transparent; transition:text-decoration-color 0.2s;" onmouseover="this.style.textDecorationColor=\'var(--primary)\'; this.style.color=\'var(--primary)\';" onmouseout="this.style.textDecorationColor=\'transparent\'; this.style.color=\'var(--text)\';" title="Click to see transactions in this category" onclick="showCategoryDetail(\'' + safeName + '\', \'' + safeMonth + '\')">' + c.name + '</span><span class="status-badge ' + status.class + '">' + status.text + '</span>'
-            + '<span style="display:inline-flex; align-items:center; gap:4px; font-size:0.78rem; color:var(--text-muted);" title="Target % for this month (overrides the category default)">'
-            + '<input type="number" min="0" max="100" step="0.1" value="' + effPct + '" onchange="setMonthlyBudgetOverride(\'' + c.id + '\', \'' + safeMonth + '\', this.value); saveState(); renderBudgetUtilization(); renderDashboard();" style="width:56px; padding:2px 4px; border-radius:6px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); text-align:center;">%'
-            + (isOverridden ? ' <button title="Reset to category default (' + (c.targetPct || 0) + '%)" onclick="setMonthlyBudgetOverride(\'' + c.id + '\', \'' + safeMonth + '\', null); saveState(); renderBudgetUtilization(); renderDashboard();" style="border:none; background:none; color:var(--primary); cursor:pointer; padding:0 2px;"><i class="fas fa-rotate-left"></i></button>' : '')
-            + '</span></div><div style="font-size:0.85rem; color:var(--text-muted);">' + fmt(actual) + ' / ' + fmt(budget) + '</div></div><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:' + Math.min(usedPct, 100) + '%; background: ' + barColor + ';"></div></div><span class="progress-text" style="color:' + barColor + ';">' + usedPct.toFixed(1) + '%</span></div></div>';
-    });
-    container.innerHTML = utilHTML;
-}
+// NOTE: The Dashboard's actual "Budget Utilization" widget is the ring grid
+// rendered inside renderDashboard() (#overviewUtilization). Per-month % is
+// edited from the category detail modal below (showCategoryDetail), which
+// opens when you click a ring.
 
 // Shows a read-only detail modal listing every transaction behind a category's
 // budget-utilization number for a given month, so "0%" (or any %) can be inspected
@@ -4210,22 +4543,47 @@ function showCategoryDetail(categoryName, monthFilter) {
     editingId = null;
     editingType = null;
 
+    // A monthFilter that's just a 4-digit year (e.g. "2024") means the ring was clicked
+    // while "All Months" was selected on the Budget Breakdown panel - treat it as a
+    // yearly rollup across that year's 12 months rather than a literal month.
+    const isYearOnly = /^\d{4}$/.test(monthFilter || '');
+    const monthNamesForDetail = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const yearMonthList = isYearOnly ? monthNamesForDetail.map(m => m + ' ' + monthFilter) : null;
+
     const cat = state.categories.find(c => c.name === categoryName);
-    const budget = cat ? getBudgetAmount(cat, monthFilter) : 0;
-    const actual = cat ? getActualForCategoryClassified(cat, monthFilter ? [monthFilter] : [...new Set(state.transactions.map(t => getMonthYear(t.date)))]) : getActualSpending(categoryName, monthFilter);
+    const budget = cat
+        ? (isYearOnly ? yearMonthList.reduce((s, m) => s + getBudgetAmount(cat, m), 0) : getBudgetAmount(cat, monthFilter))
+        : 0;
+    const actual = cat
+        ? getActualForCategoryClassified(cat, isYearOnly ? yearMonthList : (monthFilter ? [monthFilter] : [...new Set(state.transactions.map(t => getMonthYear(t.date)))]))
+        : getActualSpending(categoryName, monthFilter);
     const usedPct = budget > 0 ? (actual / budget) * 100 : 0;
     const status = getStatus(usedPct);
     const remaining = budget - actual;
 
     const wantType = cat && cat.classification === 'Investment' ? 'Investment' : 'Expense';
     const rows = state.transactions
-        .filter(t => t.category === categoryName && t.type === wantType && (!monthFilter || getMonthYear(t.date) === monthFilter))
+        .filter(t => t.category === categoryName && t.type === wantType && (isYearOnly ? getMonthYear(t.date).endsWith(' ' + monthFilter) : (!monthFilter || getMonthYear(t.date) === monthFilter)))
         .sort((a, b) => parseDate(a.date) - parseDate(b.date));
 
-    title.innerHTML = '<i class="fas fa-magnifying-glass-dollar"></i> ' + categoryName + ' <span style="color:var(--text-muted); font-weight:500; font-size:0.85rem;">- ' + (monthFilter || 'All Time') + '</span>';
+    const periodLabel = isYearOnly ? ('Yearly ' + monthFilter) : (monthFilter || 'All Time');
+    title.innerHTML = '<i class="fas fa-magnifying-glass-dollar"></i> ' + categoryName + ' <span style="color:var(--text-muted); font-weight:500; font-size:0.85rem;">- ' + periodLabel + '</span>';
+
+    const effPct = cat ? getEffectiveTargetPct(cat, monthFilter) : 0;
+    const isOverridden = cat && monthFilter && !isYearOnly && effPct !== (cat.targetPct || 0);
+    const safeCatId = cat ? cat.id : '';
+    const safeMonth = (monthFilter || '').replace(/'/g, "\\'");
+    const targetCardHTML = cat && monthFilter && !isYearOnly
+        ? '<div style="background:var(--input-bg); border-radius:10px; padding:12px;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Target for ' + monthFilter + '</div>'
+            + '<div style="display:flex; align-items:center; gap:6px;">'
+            + '<input type="number" min="0" max="100" step="0.1" value="' + effPct + '" onchange="setMonthlyBudgetOverride(\'' + safeCatId + '\', \'' + safeMonth + '\', this.value); saveState(); showCategoryDetail(\'' + categoryName.replace(/'/g, "\\'") + '\', \'' + safeMonth + '\'); renderDashboard();" style="width:60px; font-weight:700; padding:3px 5px; border-radius:6px; border:1px solid var(--border); background:var(--card-hover); color:var(--text); text-align:center;">'
+            + '<span style="font-weight:700;">%</span>'
+            + (isOverridden ? '<button title="Reset to category default (' + (cat.targetPct || 0) + '%)" onclick="setMonthlyBudgetOverride(\'' + safeCatId + '\', \'' + safeMonth + '\', null); saveState(); showCategoryDetail(\'' + categoryName.replace(/'/g, "\\'") + '\', \'' + safeMonth + '\'); renderDashboard();" style="border:none; background:none; color:var(--primary); cursor:pointer; padding:0 2px; font-size:0.85rem;"><i class="fas fa-rotate-left"></i></button>' : '')
+            + '</div>' + (isOverridden ? '<div style="font-size:0.65rem; color:var(--primary); margin-top:2px;">Custom for this month</div>' : '') + '</div>'
+        : '<div style="background:var(--input-bg); border-radius:10px; padding:12px;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Target</div><div style="font-weight:700;">' + (cat ? (cat.targetPct || 0) : 0) + '%</div></div>';
 
     let html = '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:12px; margin-bottom:20px;">'
-        + '<div style="background:var(--input-bg); border-radius:10px; padding:12px;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Target' + (monthFilter && cat && getEffectiveTargetPct(cat, monthFilter) !== (cat.targetPct || 0) ? ' (this month)' : '') + '</div><div style="font-weight:700;">' + (cat ? getEffectiveTargetPct(cat, monthFilter) : 0) + '%</div></div>'
+        + targetCardHTML
         + '<div style="background:var(--input-bg); border-radius:10px; padding:12px;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Budget</div><div style="font-weight:700;">' + fmt(budget) + '</div></div>'
         + '<div style="background:var(--input-bg); border-radius:10px; padding:12px;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Actual Spent</div><div style="font-weight:700;">' + fmt(actual) + '</div></div>'
         + '<div style="background:var(--input-bg); border-radius:10px; padding:12px;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">' + (remaining >= 0 ? 'Remaining' : 'Over By') + '</div><div style="font-weight:700; color:' + (remaining >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(Math.abs(remaining)) + '</div></div>'
@@ -4299,7 +4657,7 @@ function populateOverviewSelectors() {
     const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const dbUtilMonthSelect = document.getElementById('dbUtilMonthSelect');
     if (dbUtilMonthSelect && !dbUtilMonthSelect.options.length) {
-        dbUtilMonthSelect.innerHTML = monthNames.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+        dbUtilMonthSelect.innerHTML = '<option value="All">All Months (Yearly)</option>' + monthNames.map(m => '<option value="' + m + '">' + m + '</option>').join('');
         dbUtilMonthSelect.value = monthNames[now.getMonth()];
     }
     const dbUtilYearSelect = document.getElementById('dbUtilYearSelect');
@@ -4335,13 +4693,11 @@ function exportToCSV() {
 function exportTransactionsToExcel() {
     if (typeof XLSX === 'undefined') { showToast('Excel library failed to load', 'error'); return; }
 
-    const filterType = document.getElementById('txFilterType')?.value || '';
-    const filterCat = document.getElementById('txFilterCategory')?.value || '';
+    const filterYear = document.getElementById('txFilterYear')?.value || '';
     const filterMonth = document.getElementById('txFilterMonth')?.value || '';
 
     let filtered = [...state.transactions].sort((a, b) => parseDate(b.date) - parseDate(a.date));
-    if (filterType) filtered = filtered.filter(t => t.type === filterType);
-    if (filterCat) filtered = filtered.filter(t => t.category === filterCat);
+    if (filterYear) filtered = filtered.filter(t => parseDate(t.date).getFullYear().toString() === filterYear);
     if (filterMonth) filtered = filtered.filter(t => getMonthYear(t.date) === filterMonth);
 
     if (filtered.length === 0) { showToast('No transactions to export', 'error'); return; }
@@ -4685,8 +5041,10 @@ function showToast(message, type) {
 document.addEventListener('click', (e) => {
     const modal = document.getElementById('modal');
     if (modal && e.target === modal) closeModal();
+    const insightsModal = document.getElementById('insightsModal');
+    if (insightsModal && e.target === insightsModal) closeAIInsightsModal();
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal(); closeAIInsightsModal(); } });
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', async () => {
