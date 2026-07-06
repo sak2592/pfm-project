@@ -124,6 +124,13 @@
         .progress-fill::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 20px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3)); }
         .progress-text { font-size: 0.8rem; font-weight: 600; min-width: 40px; text-align: right; }
         .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+        .util-node-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 14px; padding-top: 4px; }
+        .util-node { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 6px; border-radius: 14px; background: var(--card-hover); border: 1px solid var(--border); transition: transform 0.2s ease, border-color 0.2s ease; cursor: default; }
+        .util-node:hover { transform: translateY(-3px); border-color: var(--ring-color, var(--primary)); }
+        .util-node-ring { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), rgba(255,255,255,0.08) 0); flex-shrink: 0; }
+        .util-node-ring::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--card-hover); }
+        .util-node-pct { position: relative; z-index: 1; font-size: 0.7rem; font-weight: 700; }
+        .util-node-name { font-size: 0.68rem; color: var(--text-muted); text-align: center; line-height: 1.2; max-width: 82px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .status-green { background: rgba(16,185,129,0.15); color: #34d399; }
         .status-yellow { background: rgba(245,158,11,0.15); color: #fbbf24; }
         .status-red { background: rgba(239,68,68,0.15); color: #f87171; }
@@ -294,6 +301,9 @@
             <button class="nav-tab" onclick="switchTab('transactions')" data-tab="transactions">
                 <i class="fas fa-list"></i> Transactions
             </button>
+            <button class="nav-tab" onclick="switchTab('smart-budget')" data-tab="smart-budget">
+                <i class="fas fa-wand-magic-sparkles"></i> Smart Budget
+            </button>
             <button class="nav-tab" onclick="switchTab('loans')" data-tab="loans">
                 <i class="fas fa-landmark"></i> Loans
             </button>
@@ -403,6 +413,21 @@
                     <div id="dbYearlyOverviewContent">
                         <div class="empty-state"><i class="fas fa-calendar"></i><p>Select a year to view overview</p></div>
                     </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header" style="cursor:pointer;" onclick="toggleDbUtilPanel()">
+                    <div class="panel-title"><i class="fas fa-list-check"></i> Budget Utilization</div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <select id="dbUtilMonthSelect" onclick="event.stopPropagation();" onchange="event.stopPropagation(); renderDashboard();" style="background:var(--input-bg); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-family:inherit; font-size:0.8rem;"></select>
+                        <select id="dbUtilYearSelect" onclick="event.stopPropagation();" onchange="event.stopPropagation(); renderDashboard();" style="background:var(--input-bg); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-family:inherit; font-size:0.8rem;"></select>
+                        <i class="fas fa-chevron-down" id="dbUtilChevron"></i>
+                    </div>
+                </div>
+                <div id="dbUtilBody" style="display:none;">
+                    <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">Click any category ring to see the transactions behind its number.</div>
+                    <div id="overviewUtilization"></div>
                 </div>
             </div>
 
@@ -569,6 +594,40 @@
                     <table>
                         <thead><tr><th>ID</th><th>Date</th><th>Category</th><th>Subcategory</th><th>Amount</th><th>% of Salary</th><th>Payment</th><th>Vendor</th><th>Actions</th></tr></thead>
                         <tbody id="investmentTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SMART BUDGET TAB -->
+        <div class="tab-pane" id="tab-smart-budget">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-wand-magic-sparkles"></i> Smart Auto-Budget</div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <select id="smartBudgetLookback" class="config-input" onchange="renderSmartBudget()" style="width:auto;">
+                            <option value="3">Last 3 months</option>
+                            <option value="6" selected>Last 6 months</option>
+                            <option value="12">Last 12 months</option>
+                            <option value="999">All available months</option>
+                        </select>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size:0.8rem; color:var(--text-muted); white-space:nowrap;">Buffer %</label>
+                            <input type="number" id="smartBudgetBuffer" class="config-input" value="10" min="0" max="50" step="1" style="width:70px;" onchange="renderSmartBudget()">
+                        </div>
+                        <button class="btn btn-secondary" onclick="renderSmartBudget()"><i class="fas fa-rotate"></i> Recalculate</button>
+                        <button class="btn btn-primary" onclick="applyAllSmartBudget()"><i class="fas fa-check-double"></i> Apply All Suggestions</button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px; padding: 14px 18px; background: rgba(99,102,241,0.05); border-radius: 12px; border: 1px solid rgba(99,102,241,0.15); color: var(--text-muted); font-size: 0.85rem;">
+                    <i class="fas fa-circle-info" style="color: var(--primary);"></i>
+                    Suggestions are based on your actual spending/investing per category over the selected period, averaged per month, expressed as a % of your average monthly income, plus a buffer for variability. Nothing changes until you hit "Apply".
+                </div>
+                <div id="smartBudgetSummary" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:18px;"></div>
+                <div style="overflow-x:auto;">
+                    <table class="config-table">
+                        <thead><tr><th>Category</th><th>Priority</th><th>Avg Actual/mo</th><th>Current Target %</th><th>Current Budget</th><th>Suggested Target %</th><th>Suggested Budget</th><th>Delta</th><th>Action</th></tr></thead>
+                        <tbody id="smartBudgetTable"></tbody>
                     </table>
                 </div>
             </div>
@@ -1697,16 +1756,22 @@ function renderDashboard() {
     // Budget utilization
     const utilContainer = document.getElementById('overviewUtilization');
     if (utilContainer) {
-        let utilHTML = '';
-        state.categories.forEach(c => {
+        const utilMonthSel = document.getElementById('dbUtilMonthSelect')?.value;
+        const utilYearSel = document.getElementById('dbUtilYearSelect')?.value;
+        const utilMonth = (utilMonthSel && utilYearSel) ? (utilMonthSel + ' ' + utilYearSel) : currentMonth;
+        const nodes = state.categories.filter(c => (c.targetPct || 0) > 0).map(c => {
             const budget = getBudgetAmount(c);
-            const actual = getActualSpending(c.name, currentMonth);
+            const actual = getActualForCategoryClassified(c, [utilMonth]);
             const usedPct = budget > 0 ? (actual / budget) * 100 : 0;
-            const status = getStatus(usedPct);
             const barColor = usedPct < 90 ? 'var(--secondary)' : usedPct < 100 ? 'var(--warning)' : 'var(--danger)';
-            utilHTML += '<div style="margin-bottom:18px;"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div style="display:flex; align-items:center; gap:10px;"><span style="font-weight:600; font-size:0.95rem;">' + c.name + '</span><span class="status-badge ' + status.class + '">' + status.text + '</span></div><div style="font-size:0.85rem; color:var(--text-muted);">' + fmt(actual) + ' / ' + fmt(budget) + '</div></div><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:' + Math.min(usedPct, 100) + '%; background: ' + barColor + ';"></div></div><span class="progress-text" style="color:' + barColor + ';">' + usedPct.toFixed(1) + '%</span></div></div>';
+            const title = c.name + ': ' + fmt(actual) + ' / ' + fmt(budget) + ' (' + usedPct.toFixed(1) + '%) - click for details';
+            const safeName = c.name.replace(/'/g, "\\'");
+            const safeMonth = utilMonth.replace(/'/g, "\\'");
+            return '<div class="util-node" style="--pct:' + Math.min(usedPct, 100) + '; --ring-color:' + barColor + '; cursor:pointer;" title="' + title.replace(/"/g, '&quot;') + '" onclick="showCategoryDetail(\'' + safeName + '\', \'' + safeMonth + '\')"><div class="util-node-ring"><span class="util-node-pct">' + usedPct.toFixed(0) + '%</span></div><div class="util-node-name">' + c.name + '</div></div>';
         });
-        utilContainer.innerHTML = utilHTML;
+        utilContainer.innerHTML = nodes.length
+            ? '<div class="util-node-grid">' + nodes.join('') + '</div>'
+            : '<div class="empty-state"><i class="fas fa-list-check"></i><p>No budget targets set yet. Head to the Smart Budget tab to generate some.</p></div>';
     }
 
     // Smart alerts
@@ -1823,6 +1888,116 @@ function renderBudgetConfig() {
         barEl.style.width = Math.min(totalPct, 100) + '%';
         barEl.style.background = totalPct > 100 ? 'linear-gradient(90deg, var(--danger), #f87171)' : 'linear-gradient(90deg, var(--primary), var(--purple))';
     }
+}
+
+function getSmartBudgetMonths(lookback) {
+    const allMonths = [...new Set(state.transactions.map(t => getMonthYear(t.date)))]
+        .sort((a, b) => parseDate('01 ' + a) - parseDate('01 ' + b));
+    if (lookback >= 999) return allMonths;
+    return allMonths.slice(-lookback);
+}
+
+function getActualForCategoryClassified(category, monthList) {
+    const wantType = category.classification === 'Investment' ? 'Investment' : 'Expense';
+    return state.transactions
+        .filter(t => t.category === category.name && t.type === wantType && monthList.includes(getMonthYear(t.date)))
+        .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+}
+
+function generateSmartBudgetSuggestions(lookback, bufferPct) {
+    const months = getSmartBudgetMonths(lookback);
+    const numMonths = Math.max(months.length, 1);
+
+    const totalIncome = state.transactions
+        .filter(t => t.type === 'Income' && months.includes(getMonthYear(t.date)))
+        .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    const avgIncome = totalIncome > 0 ? (totalIncome / numMonths) : (state.salary || 0);
+
+    const suggestions = state.categories.map(c => {
+        const totalActual = getActualForCategoryClassified(c, months);
+        const avgActual = totalActual / numMonths;
+        const hasData = totalActual > 0;
+        const rawPct = avgIncome > 0 ? (avgActual / avgIncome) * 100 : 0;
+        const bufferedPct = hasData ? rawPct * (1 + (bufferPct || 0) / 100) : (c.targetPct || 0);
+        const suggestedPct = Math.round(bufferedPct * 10) / 10;
+        return {
+            id: c.id,
+            name: c.name,
+            priority: c.priority,
+            classification: c.classification,
+            avgActual: avgActual,
+            hasData: hasData,
+            currentPct: c.targetPct || 0,
+            currentBudget: getBudgetAmount(c),
+            suggestedPct: suggestedPct,
+            suggestedBudget: avgIncome * (suggestedPct / 100)
+        };
+    });
+
+    return { suggestions, avgIncome, numMonths, months };
+}
+
+function renderSmartBudget() {
+    const tbody = document.getElementById('smartBudgetTable');
+    if (!tbody) return;
+    const lookback = parseInt(document.getElementById('smartBudgetLookback')?.value || '6', 10);
+    const bufferPct = parseFloat(document.getElementById('smartBudgetBuffer')?.value || '10');
+    const { suggestions, avgIncome, numMonths } = generateSmartBudgetSuggestions(lookback, bufferPct);
+
+    const totalCurrentPct = suggestions.reduce((s, r) => s + r.currentPct, 0);
+    const totalSuggestedPct = suggestions.reduce((s, r) => s + r.suggestedPct, 0);
+
+    const summaryEl = document.getElementById('smartBudgetSummary');
+    if (summaryEl) {
+        summaryEl.innerHTML = [
+            { label: 'Months Analyzed', value: numMonths },
+            { label: 'Avg Monthly Income', value: fmt(avgIncome) },
+            { label: 'Current Total %', value: totalCurrentPct.toFixed(1) + '%' },
+            { label: 'Suggested Total %', value: totalSuggestedPct.toFixed(1) + '%', warn: totalSuggestedPct > 100 }
+        ].map(card => '<div style="padding:14px 16px; background: rgba(99,102,241,0.05); border-radius:12px; border:1px solid rgba(99,102,241,0.15);"><div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">' + card.label + '</div><div style="font-size:1.15rem; font-weight:700; color:' + (card.warn ? 'var(--danger)' : 'var(--text)') + ';">' + card.value + (card.warn ? ' <i class="fas fa-triangle-exclamation" style="font-size:0.8rem;"></i>' : '') + '</div></div>').join('');
+    }
+
+    tbody.innerHTML = suggestions.map(r => {
+        const delta = r.suggestedPct - r.currentPct;
+        const deltaColor = Math.abs(delta) < 0.15 ? 'var(--text-muted)' : (delta > 0 ? 'var(--warning)' : 'var(--secondary)');
+        const deltaText = (delta > 0 ? '+' : '') + delta.toFixed(1) + '%';
+        const dataNote = r.hasData ? '' : ' <span style="font-size:0.7rem; color:var(--text-muted);">(no data \u2013 kept current)</span>';
+        return '<tr class="config-row"><td style="font-weight:600;">' + r.name + dataNote + '</td>' +
+            '<td><span class="priority-select ' + getPriorityClass(r.priority) + '" style="display:inline-block; padding:4px 10px; border-radius:8px; font-size:0.75rem;">' + (r.priority || 'optional') + '</span></td>' +
+            '<td style="color:var(--text-muted);">' + fmt(r.avgActual) + '</td>' +
+            '<td>' + r.currentPct.toFixed(1) + '%</td>' +
+            '<td style="color:var(--text-muted);">' + fmt(r.currentBudget) + '</td>' +
+            '<td style="font-weight:600; color:var(--primary);">' + r.suggestedPct.toFixed(1) + '%</td>' +
+            '<td style="font-weight:600;">' + fmt(r.suggestedBudget) + '</td>' +
+            '<td style="color:' + deltaColor + '; font-weight:600;">' + deltaText + '</td>' +
+            '<td><button class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem;" ' + (r.hasData ? '' : 'disabled title="No spending data in this period"') + ' onclick="applySmartBudgetOne(\'' + r.id + '\', ' + r.suggestedPct + ')"><i class="fas fa-check"></i> Apply</button></td></tr>';
+    }).join('');
+}
+
+function applySmartBudgetOne(categoryId, suggestedPct) {
+    const cat = state.categories.find(c => c.id === categoryId);
+    if (!cat) return;
+    cat.targetPct = suggestedPct;
+    saveState();
+    renderAll();
+    renderSmartBudget();
+    showToast('Updated budget for ' + cat.name, 'success');
+}
+
+function applyAllSmartBudget() {
+    const lookback = parseInt(document.getElementById('smartBudgetLookback')?.value || '6', 10);
+    const bufferPct = parseFloat(document.getElementById('smartBudgetBuffer')?.value || '10');
+    const { suggestions } = generateSmartBudgetSuggestions(lookback, bufferPct);
+    let applied = 0;
+    suggestions.forEach(r => {
+        if (!r.hasData) return;
+        const cat = state.categories.find(c => c.id === r.id);
+        if (cat) { cat.targetPct = r.suggestedPct; applied++; }
+    });
+    saveState();
+    renderAll();
+    renderSmartBudget();
+    showToast('Applied smart budgets to ' + applied + ' categories', 'success');
 }
 
 function loanRowHtml(item, today) {
@@ -2508,6 +2683,15 @@ function toggleYearlyOverview() {
     if (chevron) chevron.className = 'fas ' + (isHidden ? 'fa-chevron-up' : 'fa-chevron-down');
 }
 
+function toggleDbUtilPanel() {
+    const body = document.getElementById('dbUtilBody');
+    const chevron = document.getElementById('dbUtilChevron');
+    if (!body) return;
+    const isHidden = body.style.display === 'none';
+    body.style.display = isHidden ? '' : 'none';
+    if (chevron) chevron.className = 'fas ' + (isHidden ? 'fa-chevron-up' : 'fa-chevron-down');
+}
+
 function switchTab(tabName) {
     currentTab = tabName;
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -2523,6 +2707,8 @@ function switchTab(tabName) {
         renderExpense();
     } else if (tabName === 'investment') {
         renderInvestment();
+    } else if (tabName === 'smart-budget') {
+        renderSmartBudget();
     } else if (tabName === 'admin') {
         switchAdminSection(currentAdminSection);
     } else {
@@ -3950,9 +4136,74 @@ function renderBudgetUtilization() {
         const usedPct = budget > 0 ? (actual / budget) * 100 : 0;
         const status = getStatus(usedPct);
         const barColor = usedPct < 90 ? 'var(--secondary)' : usedPct < 100 ? 'var(--warning)' : 'var(--danger)';
-        utilHTML += '<div style="margin-bottom:18px;"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div style="display:flex; align-items:center; gap:10px;"><span style="font-weight:600; font-size:0.95rem;">' + c.name + '</span><span class="status-badge ' + status.class + '">' + status.text + '</span></div><div style="font-size:0.85rem; color:var(--text-muted);">' + fmt(actual) + ' / ' + fmt(budget) + '</div></div><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:' + Math.min(usedPct, 100) + '%; background: ' + barColor + ';"></div></div><span class="progress-text" style="color:' + barColor + ';">' + usedPct.toFixed(1) + '%</span></div></div>';
+        const safeName = c.name.replace(/'/g, "\\'");
+        const safeMonth = currentMonth.replace(/'/g, "\\'");
+        utilHTML += '<div style="margin-bottom:18px;"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div style="display:flex; align-items:center; gap:10px;"><span style="font-weight:600; font-size:0.95rem; cursor:pointer; text-decoration:underline; text-decoration-color:transparent; transition:text-decoration-color 0.2s;" onmouseover="this.style.textDecorationColor=\'var(--primary)\'; this.style.color=\'var(--primary)\';" onmouseout="this.style.textDecorationColor=\'transparent\'; this.style.color=\'var(--text)\';" title="Click to see transactions in this category" onclick="showCategoryDetail(\'' + safeName + '\', \'' + safeMonth + '\')">' + c.name + '</span><span class="status-badge ' + status.class + '">' + status.text + '</span></div><div style="font-size:0.85rem; color:var(--text-muted);">' + fmt(actual) + ' / ' + fmt(budget) + '</div></div><div class="progress-wrap"><div class="progress-bg"><div class="progress-fill" style="width:' + Math.min(usedPct, 100) + '%; background: ' + barColor + ';"></div></div><span class="progress-text" style="color:' + barColor + ';">' + usedPct.toFixed(1) + '%</span></div></div>';
     });
     container.innerHTML = utilHTML;
+}
+
+// Shows a read-only detail modal listing every transaction behind a category's
+// budget-utilization number for a given month, so "0%" (or any %) can be inspected
+// instead of taken on faith. Reuses the existing #modal overlay.
+function showCategoryDetail(categoryName, monthFilter) {
+    const modal = document.getElementById('modal');
+    const title = document.getElementById('modalTitle');
+    const content = document.getElementById('modalContent');
+    if (!modal || !title || !content) return;
+
+    // This is a view-only modal, not an add/edit form, so make sure any leftover
+    // add/edit state from the transaction form doesn't leak in if the user later
+    // clicks "Add Transaction" elsewhere.
+    editingId = null;
+    editingType = null;
+
+    const cat = state.categories.find(c => c.name === categoryName);
+    const budget = cat ? getBudgetAmount(cat) : 0;
+    const actual = cat ? getActualForCategoryClassified(cat, monthFilter ? [monthFilter] : [...new Set(state.transactions.map(t => getMonthYear(t.date)))]) : getActualSpending(categoryName, monthFilter);
+    const usedPct = budget > 0 ? (actual / budget) * 100 : 0;
+    const status = getStatus(usedPct);
+    const remaining = budget - actual;
+
+    const wantType = cat && cat.classification === 'Investment' ? 'Investment' : 'Expense';
+    const rows = state.transactions
+        .filter(t => t.category === categoryName && t.type === wantType && (!monthFilter || getMonthYear(t.date) === monthFilter))
+        .sort((a, b) => parseDate(a.date) - parseDate(b.date));
+
+    title.innerHTML = '<i class="fas fa-magnifying-glass-dollar"></i> ' + categoryName + ' <span style="color:var(--text-muted); font-weight:500; font-size:0.85rem;">- ' + (monthFilter || 'All Time') + '</span>';
+
+    let html = '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:12px; margin-bottom:20px;">'
+        + '<div style="background:var(--input-bg); border-radius:10px; padding:12px;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Target</div><div style="font-weight:700;">' + (cat ? (cat.targetPct || 0) : 0) + '%</div></div>'
+        + '<div style="background:var(--input-bg); border-radius:10px; padding:12px;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Budget</div><div style="font-weight:700;">' + fmt(budget) + '</div></div>'
+        + '<div style="background:var(--input-bg); border-radius:10px; padding:12px;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Actual Spent</div><div style="font-weight:700;">' + fmt(actual) + '</div></div>'
+        + '<div style="background:var(--input-bg); border-radius:10px; padding:12px;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">' + (remaining >= 0 ? 'Remaining' : 'Over By') + '</div><div style="font-weight:700; color:' + (remaining >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(Math.abs(remaining)) + '</div></div>'
+        + '<div style="background:var(--input-bg); border-radius:10px; padding:12px;"><div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Used</div><div style="font-weight:700;"><span class="status-badge ' + status.class + '">' + usedPct.toFixed(1) + '% - ' + status.text + '</span></div></div>'
+        + '</div>';
+
+    if (rows.length === 0) {
+        html += '<div style="text-align:center; padding:30px 10px; color:var(--text-muted);"><i class="fas fa-receipt" style="font-size:1.8rem; margin-bottom:10px; display:block;"></i>No transactions recorded for "' + categoryName + '"' + (monthFilter ? ' in ' + monthFilter : '') + '.'
+            + (monthFilter ? '<div style="margin-top:8px; font-size:0.85rem;">Try picking a different month from the dropdown above the Budget Utilization panel - this app\'s sample data lives in 2024.</div>' : '')
+            + '</div>';
+    } else {
+        html += '<div class="table-container"><table><thead><tr><th>Date</th><th>Subcategory</th><th>Amount</th><th>Payment</th><th>Vendor</th><th>Notes</th><th></th></tr></thead><tbody>';
+        rows.forEach(t => {
+            html += '<tr><td>' + parseDate(t.date).toLocaleDateString('en-IN') + '</td><td>' + (t.subcategory || '-') + '</td><td style="font-weight:700;">' + fmt(t.amount) + '</td><td>' + t.payment + '</td><td>' + (t.vendor || '-') + '</td><td style="color:var(--text-muted); font-size:0.85rem;">' + (t.notes || '-') + '</td><td><div class="action-btns"><button class="action-btn edit" onclick="editTransaction(\'' + t.id + '\')"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteTransactionFromDetail(\'' + t.id + '\', \'' + categoryName.replace(/'/g, "\\'") + '\', \'' + (monthFilter || '').replace(/'/g, "\\'") + '\')"><i class="fas fa-trash"></i></button></div></td></tr>';
+        });
+        html += '</tbody></table></div>';
+    }
+
+    content.innerHTML = html;
+    modal.classList.add('active');
+}
+
+// Wraps deleteTransaction so the detail modal refreshes in place afterward instead
+// of showing a stale list (deleteTransaction() re-renders the page but doesn't
+// know about this modal).
+function deleteTransactionFromDetail(id, categoryName, monthFilter) {
+    deleteTransaction(id);
+    if (document.getElementById('modal')?.classList.contains('active')) {
+        showCategoryDetail(categoryName, monthFilter || '');
+    }
 }
 
 function renderDashboardYearlyOverview() {
@@ -3987,6 +4238,24 @@ function populateOverviewSelectors() {
         const prevVal = dbYearSelect.value;
         dbYearSelect.innerHTML = '<option value="">Select Year</option>' + years.map(y => '<option value="' + y + '">' + y + '</option>').join('');
         dbYearSelect.value = (prevVal && years.map(String).includes(prevVal)) ? prevVal : (years[years.length - 1] || '');
+    }
+
+    // Budget Utilization ring panel on the dashboard: month + year dropdowns.
+    // Defaults to today's real month/year (previous behavior) but the person can
+    // pick any month, including ones with no data, or ones from the sample dataset.
+    const now = new Date();
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const dbUtilMonthSelect = document.getElementById('dbUtilMonthSelect');
+    if (dbUtilMonthSelect && !dbUtilMonthSelect.options.length) {
+        dbUtilMonthSelect.innerHTML = monthNames.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+        dbUtilMonthSelect.value = monthNames[now.getMonth()];
+    }
+    const dbUtilYearSelect = document.getElementById('dbUtilYearSelect');
+    if (dbUtilYearSelect) {
+        const prevVal = dbUtilYearSelect.value;
+        const yearOptions = [...new Set([...years, now.getFullYear()])].sort();
+        dbUtilYearSelect.innerHTML = yearOptions.map(y => '<option value="' + y + '">' + y + '</option>').join('');
+        dbUtilYearSelect.value = (prevVal && yearOptions.map(String).includes(prevVal)) ? prevVal : String(now.getFullYear());
     }
 }
 
