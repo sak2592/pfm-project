@@ -612,7 +612,7 @@
                     <div id="growwHoldingsFilterHint" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;"></div>
                     <div class="table-container" id="growwHoldingsTableContainer">
                         <table>
-                            <thead><tr><th>Holding</th><th>Category</th><th>Invested Value</th><th>Current Value</th><th>Gain/Loss</th><th>Return %</th><th>XIRR %</th></tr></thead>
+                            <thead><tr><th>Holding</th><th>Category</th><th>Invested Value</th><th>Current Value</th><th>Gain/Loss</th><th>Return %</th><th>XIRR %</th><th>SIP</th></tr></thead>
                             <tbody id="growwHoldingsTable"></tbody>
                         </table>
                     </div>
@@ -1093,20 +1093,6 @@
             <div style="display:flex; gap:12px; margin-top:20px;">
                 <button class="btn btn-secondary" style="flex:1;" onclick="closeGrowwImportModal()">Cancel</button>
                 <button class="btn btn-primary" style="flex:1;" onclick="confirmGrowwImport()"><i class="fas fa-check"></i> Sync Selected</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Active SIPs Popup (Mutual Fund / Stocks subcategory drill-in) -->
-    <div class="modal-overlay" id="activeSipsModal">
-        <div class="modal modal-wide">
-            <div class="modal-header">
-                <div class="modal-title" id="activeSipsModalTitle"><i class="fas fa-arrows-rotate"></i> Active SIPs</div>
-                <button class="modal-close" onclick="closeActiveSipsModal()">&times;</button>
-            </div>
-            <div id="activeSipsModalBody" style="max-height:60vh; overflow:auto;"></div>
-            <div class="modal-actions" style="display:flex; gap:10px; margin-top:16px;">
-                <button class="btn btn-secondary" style="flex:1;" onclick="closeActiveSipsModal()">Close</button>
             </div>
         </div>
     </div>
@@ -4547,11 +4533,7 @@ function renderInvestment() {
                 const colorClass = colorClasses[idx % colorClasses.length];
                 const icon = getInvestmentCategoryIcon(cat);
                 const isActive = cat === investmentSelectedCategory;
-                const isSipCategory = cat === 'Mutual Fund' || cat === 'Stocks';
-                const sipLink = isSipCategory
-                    ? '<div class="card-sub" style="margin-top:4px;"><a href="#" onclick="event.stopPropagation(); showActiveSipsPopup(\'' + cat.replace(/'/g, "\\'") + '\'); return false;" style="color:var(--primary); font-weight:600;"><i class="fas fa-repeat"></i> View Active SIPs</a></div>'
-                    : '';
-                return '<div class="dash-card ' + colorClass + '" style="cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterInvestmentByCategoryIndex(' + idx + ')" title="Click to view investment history for this category"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div>' + (isActive ? '<div class="card-sub"><strong style="color:var(--primary);">selected</strong></div>' : '') + sipLink + '</div>';
+                return '<div class="dash-card ' + colorClass + '" style="cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterInvestmentByCategoryIndex(' + idx + ')" title="Click to view investment history for this category"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div>' + (isActive ? '<div class="card-sub"><strong style="color:var(--primary);">selected</strong></div>' : '') + '</div>';
             }).join('');
         }
     }
@@ -5409,37 +5391,6 @@ function computeActiveSips() {
         });
 }
 
-function showActiveSipsPopup(category) {
-    const sips = computeActiveSips().filter(s => s.category === category);
-    const titleEl = document.getElementById('activeSipsModalTitle');
-    if (titleEl) titleEl.innerHTML = '<i class="fas fa-arrows-rotate"></i> Active ' + category + ' SIPs';
-
-    const body = document.getElementById('activeSipsModalBody');
-    if (!body) return;
-
-    if (sips.length === 0) {
-        body.innerHTML = '<div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>No active ' + category + ' SIPs set up yet</p><p style="font-size:0.8rem;">Add one from Investment &rarr; Fixed Investments, with category set to ' + category + '.</p></div>';
-    } else {
-        const total = sips.reduce((s, x) => s + x.amount, 0);
-        body.innerHTML =
-            '<div class="import-summary-bar" style="margin-bottom:14px;"><div><strong>' + sips.length + '</strong> active ' + category + ' SIP' + (sips.length === 1 ? '' : 's') + ' — <strong>' + fmt(total) + '</strong>/month total</div></div>' +
-            '<div class="table-container"><table><thead><tr><th>Fund / Scheme</th><th>Amount</th><th>Frequency</th><th>Since</th><th>Matched Groww Holding</th></tr></thead><tbody>' +
-            sips.map(s => {
-                const nameCell = '<strong>' + (s.fundName || '(no fund name set)') + '</strong>' + (s.subcategory ? '<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">' + s.subcategory + '</div>' : '');
-                const matchCell = s.matchedHolding
-                    ? ('<span class="badge badge-success">' + s.matchedHolding + '</span><div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Invested ' + fmt(s.matchedInvested) + ' · Now ' + fmt(s.matchedCurrent) + (s.matchedXirr !== '' ? ' · XIRR ' + s.matchedXirr + '%' : '') + '</div>')
-                    : '<span class="badge badge-warning">Not synced from Groww yet</span>';
-                return '<tr><td>' + nameCell + '</td><td style="font-weight:700;">' + fmt(s.amount) + '</td><td>' + s.frequency + '</td><td>' + formatMonth(s.startDate) + '</td><td>' + matchCell + '</td></tr>';
-            }).join('') +
-            '</tbody></table></div>';
-    }
-    document.getElementById('activeSipsModal').classList.add('active');
-}
-
-function closeActiveSipsModal() {
-    document.getElementById('activeSipsModal').classList.remove('active');
-}
-
 let pendingGrowwImport = [];
 
 async function handleGrowwFile(event) {
@@ -5795,12 +5746,24 @@ function renderGrowwHoldingsPanel() {
             : '';
     }
 
+    // Map each Groww holding name -> the active SIP (Fixed Investment) that fuzzy-matches it, if
+    // any, so the table can show which holdings are currently being topped up by a running SIP.
+    const activeSips = computeActiveSips();
+    const sipByHoldingName = {};
+    activeSips.forEach(s => {
+        if (s.matchedHolding && !sipByHoldingName[s.matchedHolding]) sipByHoldingName[s.matchedHolding] = s;
+    });
+
     tbody.innerHTML = shownAssets.map(a => {
         const gain = a.currentValue - a.purchaseValue;
         const ret = a.purchaseValue > 0 ? (gain / a.purchaseValue) * 100 : 0;
         const xirrCell = (a.xirr === null || a.xirr === undefined) ? '<span style="color:var(--text-muted);">—</span>' : ('<span style="color:' + (a.xirr >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + a.xirr.toFixed(1) + '%</span>');
+        const sip = sipByHoldingName[a.name];
+        const sipCell = sip
+            ? ('<span style="color:var(--secondary); font-weight:700; white-space:nowrap;" title="' + sip.frequency + (sip.escalationPct ? ' · +' + sip.escalationPct + '%/yr step-up' : '') + ' · since ' + sip.startDate + '"><i class="fas fa-arrows-rotate"></i> ' + fmt(sip.amount) + '</span>')
+            : '<span style="color:var(--text-muted);">—</span>';
         return '<tr><td><strong>' + a.name + '</strong></td><td>' + a.category + '</td><td>' + fmt(a.purchaseValue) + '</td><td>' + fmt(a.currentValue) + '</td>' +
-            '<td style="color:' + (gain >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(gain) + '</td><td>' + ret.toFixed(1) + '%</td><td>' + xirrCell + '</td></tr>';
+            '<td style="color:' + (gain >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(gain) + '</td><td>' + ret.toFixed(1) + '%</td><td>' + xirrCell + '</td><td>' + sipCell + '</td></tr>';
     }).join('') + (() => {
         const totalInvested = shownAssets.reduce((s, a) => s + a.purchaseValue, 0);
         const totalCurrent = shownAssets.reduce((s, a) => s + a.currentValue, 0);
@@ -5816,7 +5779,7 @@ function renderGrowwHoldingsPanel() {
         const avgXirrCell = avgXirr === null ? '<span style="color:var(--text-muted);">—</span>' : (avgXirr.toFixed(1) + '%');
         return '<tr style="font-weight:700; background:rgba(99,102,241,0.1);"><td>TOTAL' + (growwSelectedCategory ? ' (filtered)' : '') + '</td><td></td><td>' +
             fmt(totalInvested) + '</td><td>' + fmt(totalCurrent) + '</td>' +
-            '<td style="color:' + (totalGain >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(totalGain) + '</td><td>' + avgReturn.toFixed(1) + '%</td><td>' + avgXirrCell + '</td></tr>';
+            '<td style="color:' + (totalGain >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(totalGain) + '</td><td>' + avgReturn.toFixed(1) + '%</td><td>' + avgXirrCell + '</td><td></td></tr>';
     })();
 }
 
