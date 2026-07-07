@@ -1426,15 +1426,36 @@ async function syncNow() {
     showToast('Sync complete!', 'success');
 }
 
-// Override saveState to also sync to Sheets (if configured)
+// Override saveState to also sync to Sheets (if configured).
+// IMPORTANT: this is now async and returns a Promise that only resolves once the
+// cloud save has actually finished. Callers that need to be sure data has landed
+// in the Sheet before doing something else (e.g. reloading, or telling the user
+// "synced") should `await saveState()` instead of calling it fire-and-forget.
 const _originalSaveState = saveState;
-saveState = function() {
+let pendingSyncCount = 0;
+saveState = async function() {
     state.activeSips = computeActiveSips();
     _originalSaveState();
     if (CONFIG.GAS_URL) {
-        saveDataToSheets();
+        pendingSyncCount++;
+        setSyncStatus('syncing', 'Syncing to Sheets...');
+        try {
+            await saveDataToSheets();
+        } finally {
+            pendingSyncCount--;
+        }
     }
 };
+
+// Warn the user (native browser confirm dialog) if they try to close/reload the tab
+// while a save to Google Sheets is still in flight, so a too-quick reload can no
+// longer race ahead of the save and pull back stale data.
+window.addEventListener('beforeunload', (e) => {
+    if (pendingSyncCount > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
 
 // Override loadData to also try loading from Sheets (if configured)
 const _originalLoadData = loadData;
@@ -5484,7 +5505,7 @@ function toggleAllGrowwImportRows(checked) {
     renderGrowwImportReview();
 }
 
-function confirmGrowwImport() {
+async function confirmGrowwImport() {
     const selected = pendingGrowwImport.filter(r => r.selected);
     if (selected.length === 0) { showToast('No holdings selected', 'error'); return; }
     let added = 0, updated = 0;
@@ -5503,9 +5524,10 @@ function confirmGrowwImport() {
         }
     });
     state.growwLastSynced = new Date().toISOString();
-    saveState();
     renderNetWorth(); renderNetWorthCharts(); renderInvestment(); renderDashboard();
     closeGrowwImportModal();
+    showToast('Saving to Google Sheets...', 'info');
+    await saveState(); // wait for the cloud save to actually finish before we call it done
     showToast('Groww portfolio synced — ' + added + ' added, ' + updated + ' updated', 'success');
 }
 
