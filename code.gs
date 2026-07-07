@@ -58,7 +58,8 @@ const SHEETS = {
   recurringItems: 'RecurringItems',
   salaryHistory: 'SalaryHistory',
   settings: 'Settings',
-  monthlyBudgetTargets: 'MonthlyBudgetTargets'
+  monthlyBudgetTargets: 'MonthlyBudgetTargets',
+  activeSips: 'ActiveSIPs'
 };
 
 // ===== COLUMN DEFINITIONS FOR SIMPLE (1 row = 1 object) TABLES =====
@@ -74,12 +75,20 @@ const HEADERS = {
   // One row per category per month where the target % has been overridden
   // away from that category's default targetPct (in BudgetCategories).
   // Months not listed here just fall back to the default %.
-  monthlyBudgetTargets: ['id', 'month', 'categoryId', 'targetPct']
+  monthlyBudgetTargets: ['id', 'month', 'categoryId', 'targetPct'],
+  // Read-only, derived table: one row per active Mutual Fund / Stocks SIP (a RecurringItem
+  // with type=Investment, active=true), enriched with whatever Groww holding (Asset with
+  // source='Groww') the app's fuzzy fund-name matcher linked it to. Rebuilt from scratch on
+  // every save, so editing it directly in the Sheet has no effect — edit the actual Fixed
+  // Investment in the app instead.
+  activeSips: ['id', 'category', 'subcategory', 'fundName', 'amount', 'frequency', 'startDate',
+    'escalationPct', 'matchedHolding', 'matchedInvested', 'matchedCurrent', 'matchedXirr']
 };
 
 // Fields that should always come back as numbers.
 const NUMERIC_FIELDS = ['targetPct', 'amount', 'principal', 'outstanding', 'rate', 'tenure', 'emi',
-  'target', 'saved', 'monthly', 'purchaseValue', 'currentValue', 'escalationPct', 'salary'];
+  'target', 'saved', 'monthly', 'purchaseValue', 'currentValue', 'escalationPct', 'salary',
+  'matchedInvested', 'matchedCurrent', 'matchedXirr'];
 
 // Fields that should always come back as booleans.
 const BOOLEAN_FIELDS = ['autoOutstanding', 'liquid', 'active'];
@@ -245,7 +254,8 @@ function doGet(e) {
         assets: readTable_(SHEETS.assets, HEADERS.assets),
         recurringItems: readTable_(SHEETS.recurringItems, HEADERS.recurringItems),
         salaryHistory: readTable_(SHEETS.salaryHistory, HEADERS.salaryHistory),
-        monthlyBudgetTargets: readTable_(SHEETS.monthlyBudgetTargets, HEADERS.monthlyBudgetTargets)
+        monthlyBudgetTargets: readTable_(SHEETS.monthlyBudgetTargets, HEADERS.monthlyBudgetTargets),
+        activeSips: readTable_(SHEETS.activeSips, HEADERS.activeSips)
       };
       return jsonResponse_(Object.assign({ status: 'ok' }, state));
     }
@@ -290,6 +300,7 @@ function doPost(e) {
         writeTable_(SHEETS.recurringItems, HEADERS.recurringItems, state.recurringItems);
         writeTable_(SHEETS.salaryHistory, HEADERS.salaryHistory, state.salaryHistory);
         writeTable_(SHEETS.monthlyBudgetTargets, HEADERS.monthlyBudgetTargets, state.monthlyBudgetTargets);
+        writeTable_(SHEETS.activeSips, HEADERS.activeSips, state.activeSips);
       } finally {
         lock.releaseLock();
       }
