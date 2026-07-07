@@ -57,7 +57,8 @@ const SHEETS = {
   assets: 'Assets',
   recurringItems: 'RecurringItems',
   salaryHistory: 'SalaryHistory',
-  settings: 'Settings'
+  settings: 'Settings',
+  monthlyBudgetTargets: 'MonthlyBudgetTargets'
 };
 
 // ===== COLUMN DEFINITIONS FOR SIMPLE (1 row = 1 object) TABLES =====
@@ -69,7 +70,11 @@ const HEADERS = {
   assets: ['name', 'category', 'purchaseValue', 'currentValue', 'liquid'],
   recurringItems: ['id', 'type', 'category', 'subcategory', 'classification', 'amount', 'frequency', 'startDate', 'endDate', 'payment', 'bank', 'member', 'vendor', 'notes', 'escalationPct', 'active'],
   salaryHistory: ['date', 'salary'],
-  categoryConfig: ['id', 'type', 'category', 'subcategory']
+  categoryConfig: ['id', 'type', 'category', 'subcategory'],
+  // One row per category per month where the target % has been overridden
+  // away from that category's default targetPct (in BudgetCategories).
+  // Months not listed here just fall back to the default %.
+  monthlyBudgetTargets: ['id', 'month', 'categoryId', 'targetPct']
 };
 
 // Fields that should always come back as numbers.
@@ -82,7 +87,7 @@ const BOOLEAN_FIELDS = ['autoOutstanding', 'liquid', 'active'];
 // Fields that hold a date/month and should be normalized back to plain
 // text (Sheets sometimes auto-converts date-looking strings into real
 // Date cells).
-const DATE_FIELDS = ['date', 'startDate', 'endDate', 'targetDate'];
+const DATE_FIELDS = ['date', 'startDate', 'endDate', 'targetDate', 'month'];
 
 // ==================================================================
 // Generic helpers
@@ -156,7 +161,7 @@ function readTable_(sheetName, headers) {
         } else if (BOOLEAN_FIELDS.indexOf(h) !== -1) {
           val = toBool_(val);
         } else if (DATE_FIELDS.indexOf(h) !== -1) {
-          val = toDateStr_(val, h === 'targetDate');
+          val = toDateStr_(val, h === 'targetDate' || h === 'month');
         }
         obj[h] = val;
       });
@@ -239,7 +244,8 @@ function doGet(e) {
         goals: readTable_(SHEETS.goals, HEADERS.goals),
         assets: readTable_(SHEETS.assets, HEADERS.assets),
         recurringItems: readTable_(SHEETS.recurringItems, HEADERS.recurringItems),
-        salaryHistory: readTable_(SHEETS.salaryHistory, HEADERS.salaryHistory)
+        salaryHistory: readTable_(SHEETS.salaryHistory, HEADERS.salaryHistory),
+        monthlyBudgetTargets: readTable_(SHEETS.monthlyBudgetTargets, HEADERS.monthlyBudgetTargets)
       };
       return jsonResponse_(Object.assign({ status: 'ok' }, state));
     }
@@ -283,6 +289,7 @@ function doPost(e) {
         writeTable_(SHEETS.assets, HEADERS.assets, state.assets);
         writeTable_(SHEETS.recurringItems, HEADERS.recurringItems, state.recurringItems);
         writeTable_(SHEETS.salaryHistory, HEADERS.salaryHistory, state.salaryHistory);
+        writeTable_(SHEETS.monthlyBudgetTargets, HEADERS.monthlyBudgetTargets, state.monthlyBudgetTargets);
       } finally {
         lock.releaseLock();
       }
