@@ -1097,6 +1097,20 @@
         </div>
     </div>
 
+    <!-- Active SIPs Popup (Mutual Fund / Stocks subcategory drill-in) -->
+    <div class="modal-overlay" id="activeSipsModal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <div class="modal-title" id="activeSipsModalTitle"><i class="fas fa-arrows-rotate"></i> Active SIPs</div>
+                <button class="modal-close" onclick="closeActiveSipsModal()">&times;</button>
+            </div>
+            <div id="activeSipsModalBody" style="max-height:60vh; overflow:auto;"></div>
+            <div class="modal-actions" style="display:flex; gap:10px; margin-top:16px;">
+                <button class="btn btn-secondary" style="flex:1;" onclick="closeActiveSipsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast-container" id="toastContainer"></div>
 
 <script>
@@ -1429,6 +1443,7 @@ async function syncNow() {
 // Override saveState to also sync to Sheets (if configured)
 const _originalSaveState = saveState;
 saveState = function() {
+    state.activeSips = computeActiveSips();
     _originalSaveState();
     if (CONFIG.GAS_URL) {
         saveDataToSheets();
@@ -4532,7 +4547,11 @@ function renderInvestment() {
                 const colorClass = colorClasses[idx % colorClasses.length];
                 const icon = getInvestmentCategoryIcon(cat);
                 const isActive = cat === investmentSelectedCategory;
-                return '<div class="dash-card ' + colorClass + '" style="cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterInvestmentByCategoryIndex(' + idx + ')" title="Click to view investment history for this category"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div>' + (isActive ? '<div class="card-sub"><strong style="color:var(--primary);">selected</strong></div>' : '') + '</div>';
+                const isSipCategory = cat === 'Mutual Fund' || cat === 'Stocks';
+                const sipLink = isSipCategory
+                    ? '<div class="card-sub" style="margin-top:4px;"><a href="#" onclick="event.stopPropagation(); showActiveSipsPopup(\'' + cat.replace(/'/g, "\\'") + '\'); return false;" style="color:var(--primary); font-weight:600;"><i class="fas fa-repeat"></i> View Active SIPs</a></div>'
+                    : '';
+                return '<div class="dash-card ' + colorClass + '" style="cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterInvestmentByCategoryIndex(' + idx + ')" title="Click to view investment history for this category"><div class="card-icon"><i class="fas ' + icon + '"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div>' + (isActive ? '<div class="card-sub"><strong style="color:var(--primary);">selected</strong></div>' : '') + sipLink + '</div>';
             }).join('');
         }
     }
@@ -5320,6 +5339,107 @@ function parseGrowwWorkbook(workbook) {
     return Object.values(combined).map(h => { delete h._xirrWeight; return h; });
 }
 
+// ==================================================================
+// Active SIPs (Mutual Fund / Stocks) — separate "sheet" + click-to-view popup
+// ==================================================================
+// An "active SIP" here is any Fixed Investment (RecurringItem, type=Investment, active=true)
+// whose category is Mutual Fund or Stocks. We fuzzy-match its Fund/Scheme Name against whatever
+// Groww holdings have been synced into the Asset Portfolio (state.assets, source='Groww'), so
+// uploading a fresh Groww statement automatically shows which SIP each holding belongs to
+// without you having to link them by hand.
+
+function normalizeFundName(s) {
+    return String(s || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9 ]/g, ' ')
+        .replace(/\b(direct|regular|growth|plan|fund|scheme|mutual|nav|option|dividend|idcw|payout|reinvestment|the)\b/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// Word-overlap similarity (0-1) between two fund/scheme names, robust to Groww vs. your own
+// naming ("Parag Parikh Flexi Cap" vs "Parag Parikh Flexi Cap Fund Direct Growth").
+function fundNameSimilarity(a, b) {
+    const na = normalizeFundName(a), nb = normalizeFundName(b);
+    if (!na || !nb) return 0;
+    if (na === nb) return 1;
+    if (na.includes(nb) || nb.includes(na)) return 0.9;
+    const wa = new Set(na.split(' ').filter(Boolean));
+    const wb = new Set(nb.split(' ').filter(Boolean));
+    let common = 0;
+    wa.forEach(w => { if (wb.has(w)) common++; });
+    const union = new Set([...wa, ...wb]).size;
+    return union ? common / union : 0;
+}
+
+// Best-matching Groww-synced asset for a given SIP fund name, or null if nothing crosses the
+// similarity threshold (0.5 — roughly "at least half the meaningful words line up").
+function findMatchingGrowwHolding(fundName) {
+    if (!fundName) return null;
+    let best = null, bestScore = 0;
+    (state.assets || []).forEach(a => {
+        if (a.source !== 'Groww') return;
+        const score = fundNameSimilarity(fundName, a.name);
+        if (score > bestScore) { bestScore = score; best = a; }
+    });
+    return bestScore >= 0.5 ? best : null;
+}
+
+// Builds the flat list backing the "ActiveSIPs" sheet tab and the popup — every active Mutual
+// Fund / Stocks Fixed Investment, enriched with its matched Groww holding (if any).
+function computeActiveSips() {
+    return (state.recurringItems || [])
+        .filter(r => r.type === 'Investment' && r.active && (r.category === 'Mutual Fund' || r.category === 'Stocks'))
+        .map(r => {
+            const match = findMatchingGrowwHolding(r.fundName);
+            return {
+                id: r.id,
+                category: r.category,
+                subcategory: r.subcategory || '',
+                fundName: r.fundName || '',
+                amount: r.amount,
+                frequency: r.frequency,
+                startDate: r.startDate,
+                escalationPct: r.escalationPct || 0,
+                matchedHolding: match ? match.name : '',
+                matchedInvested: match ? (match.purchaseValue || 0) : 0,
+                matchedCurrent: match ? (match.currentValue || 0) : 0,
+                matchedXirr: (match && match.xirr !== null && match.xirr !== undefined) ? match.xirr : ''
+            };
+        });
+}
+
+function showActiveSipsPopup(category) {
+    const sips = computeActiveSips().filter(s => s.category === category);
+    const titleEl = document.getElementById('activeSipsModalTitle');
+    if (titleEl) titleEl.innerHTML = '<i class="fas fa-arrows-rotate"></i> Active ' + category + ' SIPs';
+
+    const body = document.getElementById('activeSipsModalBody');
+    if (!body) return;
+
+    if (sips.length === 0) {
+        body.innerHTML = '<div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>No active ' + category + ' SIPs set up yet</p><p style="font-size:0.8rem;">Add one from Investment &rarr; Fixed Investments, with category set to ' + category + '.</p></div>';
+    } else {
+        const total = sips.reduce((s, x) => s + x.amount, 0);
+        body.innerHTML =
+            '<div class="import-summary-bar" style="margin-bottom:14px;"><div><strong>' + sips.length + '</strong> active ' + category + ' SIP' + (sips.length === 1 ? '' : 's') + ' — <strong>' + fmt(total) + '</strong>/month total</div></div>' +
+            '<div class="table-container"><table><thead><tr><th>Fund / Scheme</th><th>Amount</th><th>Frequency</th><th>Since</th><th>Matched Groww Holding</th></tr></thead><tbody>' +
+            sips.map(s => {
+                const nameCell = '<strong>' + (s.fundName || '(no fund name set)') + '</strong>' + (s.subcategory ? '<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">' + s.subcategory + '</div>' : '');
+                const matchCell = s.matchedHolding
+                    ? ('<span class="badge badge-success">' + s.matchedHolding + '</span><div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Invested ' + fmt(s.matchedInvested) + ' · Now ' + fmt(s.matchedCurrent) + (s.matchedXirr !== '' ? ' · XIRR ' + s.matchedXirr + '%' : '') + '</div>')
+                    : '<span class="badge badge-warning">Not synced from Groww yet</span>';
+                return '<tr><td>' + nameCell + '</td><td style="font-weight:700;">' + fmt(s.amount) + '</td><td>' + s.frequency + '</td><td>' + formatMonth(s.startDate) + '</td><td>' + matchCell + '</td></tr>';
+            }).join('') +
+            '</tbody></table></div>';
+    }
+    document.getElementById('activeSipsModal').classList.add('active');
+}
+
+function closeActiveSipsModal() {
+    document.getElementById('activeSipsModal').classList.remove('active');
+}
+
 let pendingGrowwImport = [];
 
 async function handleGrowwFile(event) {
@@ -5338,8 +5458,16 @@ async function handleGrowwFile(event) {
             showToast('No holdings found in the uploaded file(s) — make sure it\'s the Groww Holdings/Balance Statement Excel', 'error');
             return;
         }
+        const activeSips = computeActiveSips();
         pendingGrowwImport = allHoldings.map((h, i) => {
             const existingIdx = state.assets.findIndex(a => a.name.trim().toLowerCase() === h.name.trim().toLowerCase());
+            // Auto-map this holding against your active Mutual Fund / Stocks SIPs by fund name,
+            // so you can see at a glance which uploaded holdings are being invested into monthly.
+            let matchedSip = null, bestScore = 0;
+            activeSips.forEach(s => {
+                const score = fundNameSimilarity(h.name, s.fundName);
+                if (score > bestScore) { bestScore = score; matchedSip = s; }
+            });
             return {
                 _rowId: 'gh_' + i,
                 selected: true,
@@ -5349,7 +5477,8 @@ async function handleGrowwFile(event) {
                 investedValue: Math.round(h.invested * 100) / 100,
                 currentValue: Math.round(h.current * 100) / 100,
                 xirr: (h.xirr === null || h.xirr === undefined) ? null : Math.round(h.xirr * 100) / 100,
-                existingIdx
+                existingIdx,
+                matchedSip: bestScore >= 0.5 ? matchedSip : null
             };
         });
         openGrowwImportModal();
@@ -5378,9 +5507,12 @@ function renderGrowwImportReview() {
 
     const tbody = document.getElementById('growwImportReviewTable');
     tbody.innerHTML = pendingGrowwImport.map(r => {
+        const sipBadge = r.matchedSip
+            ? '<div style="margin-top:4px;"><span class="badge badge-success" title="Matches your Rs.' + fmt(r.matchedSip.amount) + ' active SIP"><i class="fas fa-arrows-rotate"></i> Active SIP</span></div>'
+            : '';
         return '<tr class="import-row">' +
             '<td><input type="checkbox" ' + (r.selected ? 'checked' : '') + ' onchange="updateGrowwImportField(\'' + r._rowId + '\', \'selected\', this.checked)"></td>' +
-            '<td>' + r.name + '</td>' +
+            '<td>' + r.name + sipBadge + '</td>' +
             '<td><input type="text" value="' + r.category + '" onchange="updateGrowwImportField(\'' + r._rowId + '\', \'category\', this.value)"></td>' +
             '<td><input type="number" value="' + r.investedValue + '" onchange="updateGrowwImportField(\'' + r._rowId + '\', \'investedValue\', parseFloat(this.value)||0)"></td>' +
             '<td><input type="number" value="' + r.currentValue + '" onchange="updateGrowwImportField(\'' + r._rowId + '\', \'currentValue\', parseFloat(this.value)||0)"></td>' +
