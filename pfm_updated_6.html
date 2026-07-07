@@ -530,6 +530,10 @@
                     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                         <select id="investmentFilterYear" class="config-input" onchange="onInvestmentTopFilterChange()" style="width:auto; min-width:100px;"><option value="">All Years</option></select>
                         <select id="investmentFilterMonth" class="config-input" onchange="onInvestmentTopFilterChange()" style="width:auto; min-width:120px;"><option value="">All Months</option></select>
+                        <input type="file" id="growwFileInput" accept=".xlsx,.xls" multiple style="display:none;" onchange="handleGrowwFile(event)">
+                        <button class="btn btn-secondary" onclick="document.getElementById('growwFileInput').click()" title="Upload the Holdings/Balance Statement Excel exported from Groww (Profile → Reports)">
+                            <i class="fas fa-arrows-rotate"></i> Sync Groww Portfolio
+                        </button>
                     </div>
                 </div>
                 <div class="dashboard-grid" style="margin-bottom: 20px;">
@@ -574,6 +578,49 @@
                 <div class="panel">
                     <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-pie"></i> Investment by Category</div></div>
                     <div class="chart-container"><canvas id="investmentCategoryChart"></canvas></div>
+                </div>
+            </div>
+            <div class="panel" id="growwHoldingsPanel" style="display:none;">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-vault"></i> Portfolio Holdings <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(synced from Groww — edit or remove in Admin → Net Worth → Asset Portfolio)</span></div>
+                    <div style="display:flex; align-items:center; gap:14px;">
+                        <span id="growwLastSyncedLabel" style="font-size:0.78rem; color:var(--text-muted); white-space:nowrap;"></span>
+                        <button class="btn btn-secondary" id="growwHoldingsToggleBtn" onclick="toggleGrowwHoldingsCollapse()" title="Show/hide this panel"><i class="fas fa-chevron-up"></i></button>
+                    </div>
+                </div>
+                <div id="growwHoldingsBody">
+                    <div style="display:grid; grid-template-columns: 260px 1fr; gap:20px; margin-bottom:20px; align-items:center;">
+                        <div class="chart-container" style="height:220px;"><canvas id="growwCategoryChart"></canvas></div>
+                        <div class="dashboard-grid" id="growwCategoryLegend" style="margin-bottom:0;"></div>
+                    </div>
+                    <div style="background:rgba(99,102,241,0.04); border:1px solid rgba(99,102,241,0.15); border-radius:12px; padding:16px 18px; margin-bottom:20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+                            <strong><i class="fas fa-scale-balanced"></i> Portfolio Balance Indicator</strong>
+                            <span style="font-size:0.72rem; color:var(--text-muted);">Rule-based check against <em>your own</em> target allocation below — not a market prediction or financial advice</span>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead><tr><th>Asset Class</th><th>Current %</th><th>Your Target %</th><th>Diff</th><th>Signal</th></tr></thead>
+                                <tbody id="growwBalanceTable"></tbody>
+                            </table>
+                        </div>
+                        <div id="growwConcentrationWarning" style="margin-top:10px;"></div>
+                        <div id="growwEquitySubPanel" style="display:none; margin-top:16px; padding-top:14px; border-top:1px dashed rgba(148,163,184,0.2);">
+                            <div style="font-size:0.85rem; font-weight:600; margin-bottom:8px;"><i class="fas fa-diagram-project"></i> Equity Sub-allocation <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">(% of your Equity holdings only — ELSS, Large Cap, Mid Cap, Small Cap, Flexi Cap, etc.)</span></div>
+                            <div class="table-container">
+                                <table>
+                                    <thead><tr><th>Equity Sub-category</th><th>Current %</th><th>Your Target %</th><th>Diff</th><th>Signal</th></tr></thead>
+                                    <tbody id="growwEquitySubTable"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container" id="growwHoldingsTableContainer">
+                        <table>
+                            <thead><tr><th>Holding</th><th>Category</th><th>Invested Value</th><th>Current Value</th><th>Gain/Loss</th><th>Return %</th></tr></thead>
+                            <tbody id="growwHoldingsTable"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
             <div class="panel" id="investmentHistoryPanel" style="display:none;">
@@ -629,15 +676,13 @@
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title"><i class="fas fa-wallet"></i> Income Tracker</div>
-                    
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
-                    <div class="form-group" style="margin:0;"><label>Filter Source</label><select id="incomeFilterSource" class="config-input" onchange="renderIncome()"><option value="">All Sources</option></select></div>
-                    <div class="form-group" style="margin:0;"><label>Year</label><select id="incomeFilterYear" class="config-input" onchange="renderIncome()"><option value="">All Years</option></select></div>
-                    <div class="form-group" style="margin:0;"><label>Month</label><select id="incomeFilterMonth" class="config-input" onchange="renderIncome()"><option value="">All Months</option></select></div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                        <select id="incomeFilterYear" class="config-input" onchange="onIncomeTopFilterChange()" style="width:auto; min-width:100px;"><option value="">All Years</option></select>
+                        <select id="incomeFilterMonth" class="config-input" onchange="onIncomeTopFilterChange()" style="width:auto; min-width:120px;"><option value="">All Months</option></select>
+                    </div>
                 </div>
                 <div class="dashboard-grid" style="margin-bottom: 20px;">
-                    <div class="dash-card salary">
+                    <div class="dash-card salary" id="incomeTotalCard" style="cursor:pointer;" onclick="toggleIncomeTotalFilter()" title="Click to view all-time income transactions in Income History below">
                         <div class="card-icon"><i class="fas fa-wallet"></i></div>
                         <div class="card-label">Total Income</div>
                         <div class="card-value" id="incomeTotal">Rs.0</div>
@@ -649,7 +694,7 @@
                         <div class="card-value" id="incomeYear">Rs.0</div>
                         <div class="card-sub" id="incomeYearSub">2024</div>
                     </div>
-                    <div class="dash-card savings">
+                    <div class="dash-card savings" id="incomeMonthCard" style="cursor:pointer;" onclick="toggleIncomeMonthFilter()" title="Click to view this month's income transactions in Income History below">
                         <div class="card-icon"><i class="fas fa-calendar-day"></i></div>
                         <div class="card-label">This Month</div>
                         <div class="card-value" id="incomeMonth">Rs.0</div>
@@ -662,15 +707,12 @@
                         <div class="card-sub">Based on history</div>
                     </div>
                 </div>
+            </div>
+            <div class="panel">
                 <div class="panel-header">
-                    <div class="panel-title"><i class="fas fa-list"></i> Income History</div>
+                    <div class="panel-title"><i class="fas fa-chart-pie"></i> Source-wise Breakdown <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(click a source to see its income history)</span></div>
                 </div>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>ID</th><th>Date</th><th>Source</th><th>Subcategory</th><th>Amount</th><th>% of Salary</th><th>Payment</th><th>Bank</th><th>Notes</th><th>Actions</th></tr></thead>
-                        <tbody id="incomeTable"></tbody>
-                    </table>
-                </div>
+                <div class="dashboard-grid" id="incomeCategoryBreakdown"></div>
             </div>
             <div class="chart-grid">
                 <div class="panel">
@@ -680,6 +722,18 @@
                 <div class="panel">
                     <div class="panel-header"><div class="panel-title"><i class="fas fa-chart-pie"></i> Income by Source</div></div>
                     <div class="chart-container"><canvas id="incomeSourceChart"></canvas></div>
+                </div>
+            </div>
+            <div class="panel" id="incomeHistoryPanel" style="display:none;">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-list"></i> Income History</div>
+                </div>
+                <div id="incomeFilterBadge"></div>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>ID</th><th>Date</th><th>Source</th><th>Subcategory</th><th>Amount</th><th>% of Salary</th><th>Payment</th><th>Bank</th><th>Notes</th><th>Actions</th></tr></thead>
+                        <tbody id="incomeTable"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -1017,6 +1071,36 @@
         </div>
     </div>
 
+    <!-- Groww Portfolio Import Review Modal -->
+    <div class="modal-overlay" id="growwImportModal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fas fa-arrows-rotate"></i> Review Groww Portfolio Sync</div>
+                <button class="modal-close" onclick="closeGrowwImportModal()">&times;</button>
+            </div>
+            <div id="growwImportSummaryBar" class="import-summary-bar"></div>
+            <div class="table-container" style="max-height:50vh;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:34px;"><input type="checkbox" id="growwImportSelectAll" checked onchange="toggleAllGrowwImportRows(this.checked)"></th>
+                            <th>Holding</th>
+                            <th>Category</th>
+                            <th>Invested Value</th>
+                            <th>Current Value</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="growwImportReviewTable"></tbody>
+                </table>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:20px;">
+                <button class="btn btn-secondary" style="flex:1;" onclick="closeGrowwImportModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex:1;" onclick="confirmGrowwImport()"><i class="fas fa-check"></i> Sync Selected</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast-container" id="toastContainer"></div>
 
 <script>
@@ -1169,6 +1253,10 @@ let investmentFiltersInitialized = false;
 let investmentSelectedCategory = '';
 let investmentFixedOnlyFilter = false;
 let investmentCatEntries = [];
+let incomeFiltersInitialized = false;
+let incomeSelectedCategory = '';
+let incomeCatEntries = [];
+let incomeQuickFilter = ''; // '' | 'month' | 'total' — drives the This Month / Total Income card drill-down
 let editingType = null;
 let currentTab = 'overview';
 let currentAdminSection = 'category';
@@ -3734,27 +3822,102 @@ function resetAll() {
 }
 
 
+function onIncomeTopFilterChange() {
+    incomeSelectedCategory = '';
+    incomeQuickFilter = '';
+    renderIncome();
+}
+
+function filterIncomeByCategoryIndex(idx) {
+    const entry = incomeCatEntries[idx];
+    if (!entry) return;
+    const isActive = incomeSelectedCategory === entry.category;
+    incomeSelectedCategory = isActive ? '' : entry.category;
+    incomeQuickFilter = '';
+    renderIncome();
+}
+
+function clearIncomeFilter() {
+    incomeSelectedCategory = '';
+    incomeQuickFilter = '';
+    renderIncome();
+}
+
+// Toggling the "Total Income" card drills Income History down to every income transaction,
+// all-time, across all sources — regardless of the Year/Month dropdowns above. Clicking it
+// again clears the lens. Selecting a source or the "This Month" card elsewhere clears it too.
+function toggleIncomeTotalFilter() {
+    incomeQuickFilter = (incomeQuickFilter === 'total') ? '' : 'total';
+    if (incomeQuickFilter === 'total') {
+        incomeSelectedCategory = '';
+    }
+    renderIncome();
+}
+
+// Toggling the "This Month" card drills Income History down to just the current month's income
+// transactions, across all sources. Clicking it again clears the lens. Selecting a source or the
+// "Total Income" card elsewhere clears it too.
+function toggleIncomeMonthFilter() {
+    incomeQuickFilter = (incomeQuickFilter === 'month') ? '' : 'month';
+    if (incomeQuickFilter === 'month') {
+        incomeSelectedCategory = '';
+    }
+    renderIncome();
+}
+
 function renderIncome() {
     const tbody = document.getElementById('incomeTable');
     if (!tbody) return;
 
-    const filterSource = document.getElementById('incomeFilterSource')?.value || '';
     const filterYear = document.getElementById('incomeFilterYear')?.value || '';
-    const filterMonth = document.getElementById('incomeFilterMonth')?.value || '';
+    let filterMonth = document.getElementById('incomeFilterMonth')?.value || '';
 
-    let filtered = state.transactions
-        .filter(t => t.type === 'Income')
-        .sort((a, b) => parseDate(b.date) - parseDate(a.date));
+    // Default to the current month on first load only (so the tab doesn't open showing an all-time total)
+    if (!incomeFiltersInitialized) {
+        incomeFiltersInitialized = true;
+        if (!filterMonth && !filterYear) {
+            filterMonth = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+        }
+    }
 
-    if (filterSource) filtered = filtered.filter(t => t.category === filterSource);
-    if (filterYear) filtered = filtered.filter(t => parseDate(t.date).getFullYear().toString() === filterYear);
-    if (filterMonth) filtered = filtered.filter(t => getMonthYear(t.date) === filterMonth);
+    // Always show all 12 months of the relevant year (selected year, or current year if none selected)
+    const monthsYear = filterYear ? parseInt(filterYear) : new Date().getFullYear();
+    const monthsInScope = Array.from({ length: 12 }, (_, m) => new Date(monthsYear, m, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }));
 
-    // Update summary cards
+    // If the previously selected month doesn't belong to the relevant year, clear it
+    if (filterMonth && !monthsInScope.includes(filterMonth)) {
+        filterMonth = '';
+        const monthSelectEl = document.getElementById('incomeFilterMonth');
+        if (monthSelectEl) monthSelectEl.value = '';
+    }
+
+    // Base filtered set — respects Year/Month only; drives the totals and source cards
+    let baseFiltered = state.transactions.filter(t => t.type === 'Income').sort((a, b) => parseDate(b.date) - parseDate(a.date));
+    if (filterYear) baseFiltered = baseFiltered.filter(t => parseDate(t.date).getFullYear().toString() === filterYear);
+    if (filterMonth) baseFiltered = baseFiltered.filter(t => getMonthYear(t.date) === filterMonth);
+
+    // If the selected source no longer exists in the current year/month scope, drop it
+    if (incomeSelectedCategory && !baseFiltered.some(t => t.category === incomeSelectedCategory)) {
+        incomeSelectedCategory = '';
+    }
+
+    const currentMonthStr = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+
+    // "Total Income" and "This Month" cards drill into their own scope regardless of the
+    // Year/Month dropdowns or a selected source; otherwise fall back to the normal source drill.
+    let filtered;
+    if (incomeQuickFilter === 'total') {
+        filtered = state.transactions.filter(t => t.type === 'Income').sort((a, b) => parseDate(b.date) - parseDate(a.date));
+    } else if (incomeQuickFilter === 'month') {
+        filtered = state.transactions.filter(t => t.type === 'Income' && getMonthYear(t.date) === currentMonthStr).sort((a, b) => parseDate(b.date) - parseDate(a.date));
+    } else {
+        filtered = incomeSelectedCategory ? baseFiltered.filter(t => t.category === incomeSelectedCategory) : baseFiltered;
+    }
+
+    // Update summary cards (always all-time / this-year / this-month, independent of filters above)
     const totalIncome = state.transactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
     const currentYear = new Date().getFullYear().toString();
     const yearIncome = state.transactions.filter(t => t.type === 'Income' && parseDate(t.date).getFullYear().toString() === currentYear).reduce((s, t) => s + t.amount, 0);
-    const currentMonthStr = new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
     const monthIncome = state.transactions.filter(t => t.type === 'Income' && getMonthYear(t.date) === currentMonthStr).reduce((s, t) => s + t.amount, 0);
     const incomeMonths = [...new Set(state.transactions.filter(t => t.type === 'Income').map(t => getMonthYear(t.date)))].length;
     const avgMonthly = incomeMonths > 0 ? totalIncome / incomeMonths : 0;
@@ -3767,7 +3930,19 @@ function renderIncome() {
     el('incomeMonthSub', currentMonthStr);
     el('incomeAvg', fmt(avgMonthly));
 
-    if (filtered.length === 0) {
+    // Highlight whichever quick-filter card (if any) is active
+    const totalCardEl = document.getElementById('incomeTotalCard');
+    if (totalCardEl) totalCardEl.style.outline = incomeQuickFilter === 'total' ? '2px solid var(--primary)' : '';
+    const monthCardEl = document.getElementById('incomeMonthCard');
+    if (monthCardEl) monthCardEl.style.outline = incomeQuickFilter === 'month' ? '2px solid var(--primary)' : '';
+
+    // Income History stays hidden until a source card or a quick-filter card is clicked
+    const historyPanel = document.getElementById('incomeHistoryPanel');
+    if (historyPanel) historyPanel.style.display = (incomeSelectedCategory || incomeQuickFilter) ? '' : 'none';
+
+    if (!incomeSelectedCategory && !incomeQuickFilter) {
+        tbody.innerHTML = '';
+    } else if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><i class="fas fa-wallet"></i><p>No income entries found</p></div></td></tr>';
     } else {
         tbody.innerHTML = filtered.map(t => {
@@ -3776,13 +3951,52 @@ function renderIncome() {
         }).join('');
     }
 
-    // Populate filters
-    const sourceSelect = document.getElementById('incomeFilterSource');
-    if (sourceSelect) {
-        const sources = [...new Set(state.transactions.filter(t => t.type === 'Income').map(t => t.category))].sort();
-        sourceSelect.innerHTML = '<option value="">All Sources</option>' + sources.map(s => '<option value="' + s + '">' + s + '</option>').join('');
-        if (filterSource) sourceSelect.value = filterSource;
+    // Source-wise breakdown as small colorful nodal cards — respects Year/Month filters only, so
+    // every source stays visible to click between; clicking one drills Income History below.
+    const breakdownGrid = document.getElementById('incomeCategoryBreakdown');
+    if (breakdownGrid) {
+        const srcBreakdown = {};
+        baseFiltered.forEach(t => { srcBreakdown[t.category] = (srcBreakdown[t.category] || 0) + t.amount; });
+        const srcEntries = Object.entries(srcBreakdown).sort((a, b) => b[1] - a[1]);
+        incomeCatEntries = srcEntries.map(([cat, amt]) => ({ category: cat, amount: amt }));
+        const baseFilteredTotal = baseFiltered.reduce((s, t) => s + t.amount, 0);
+        if (srcEntries.length === 0) {
+            breakdownGrid.innerHTML = '<div class="empty-state"><i class="fas fa-chart-pie"></i><p>No income for the selected filter</p></div>';
+        } else {
+            const colorClasses = ['savings', 'budget', 'networth', 'health', 'emi', 'salary', 'loan'];
+            breakdownGrid.innerHTML = srcEntries.map(([cat, amt], idx) => {
+                const pct = baseFilteredTotal > 0 ? (amt / baseFilteredTotal) * 100 : 0;
+                const colorClass = colorClasses[idx % colorClasses.length];
+                const isActive = cat === incomeSelectedCategory;
+                return '<div class="dash-card ' + colorClass + '" style="cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterIncomeByCategoryIndex(' + idx + ')" title="Click to view income history for this source"><div class="card-icon"><i class="fas fa-wallet"></i></div><div class="card-label">' + cat + '</div><div class="card-value">' + fmt(amt) + '</div><div class="card-change"><i class="fas fa-chart-simple"></i> ' + pct.toFixed(1) + '% of total</div>' + (isActive ? '<div class="card-sub"><strong style="color:var(--primary);">selected</strong></div>' : '') + '</div>';
+            }).join('');
+        }
     }
+
+    // Active filter badge above Income History
+    const filterBadgeEl = document.getElementById('incomeFilterBadge');
+    if (filterBadgeEl) {
+        if (incomeQuickFilter === 'total') {
+            filterBadgeEl.innerHTML = '<div class="import-summary-bar" style="margin-bottom:16px;">' +
+                '<div><i class="fas fa-filter"></i> Showing <strong>all-time</strong> income — <strong>' + filtered.length + '</strong> transaction' + (filtered.length === 1 ? '' : 's') + '</div>' +
+                '<button class="btn btn-secondary" onclick="toggleIncomeTotalFilter()"><i class="fas fa-xmark"></i> Clear</button>' +
+            '</div>';
+        } else if (incomeQuickFilter === 'month') {
+            filterBadgeEl.innerHTML = '<div class="import-summary-bar" style="margin-bottom:16px;">' +
+                '<div><i class="fas fa-filter"></i> Showing <strong>' + currentMonthStr + '</strong> income — <strong>' + filtered.length + '</strong> transaction' + (filtered.length === 1 ? '' : 's') + '</div>' +
+                '<button class="btn btn-secondary" onclick="toggleIncomeMonthFilter()"><i class="fas fa-xmark"></i> Clear</button>' +
+            '</div>';
+        } else if (incomeSelectedCategory) {
+            filterBadgeEl.innerHTML = '<div class="import-summary-bar" style="margin-bottom:16px;">' +
+                '<div><i class="fas fa-filter"></i> Showing only <strong>' + incomeSelectedCategory + '</strong> — <strong>' + filtered.length + '</strong> transaction' + (filtered.length === 1 ? '' : 's') + '</div>' +
+                '<button class="btn btn-secondary" onclick="clearIncomeFilter()"><i class="fas fa-xmark"></i> Clear</button>' +
+            '</div>';
+        } else {
+            filterBadgeEl.innerHTML = '';
+        }
+    }
+
+    // Populate Year/Month filters (Source is now a click-to-drill card, not a dropdown)
     const yearSelect = document.getElementById('incomeFilterYear');
     if (yearSelect) {
         const years = [...new Set(state.transactions.filter(t => t.type === 'Income').map(t => parseDate(t.date).getFullYear()))].sort();
@@ -3791,8 +4005,7 @@ function renderIncome() {
     }
     const monthSelect = document.getElementById('incomeFilterMonth');
     if (monthSelect) {
-        const months = [...new Set(state.transactions.filter(t => t.type === 'Income').map(t => getMonthYear(t.date)))].sort();
-        monthSelect.innerHTML = '<option value="">All Months</option>' + months.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+        monthSelect.innerHTML = '<option value="">All Months</option>' + monthsInScope.map(m => '<option value="' + m + '">' + m + '</option>').join('');
         if (filterMonth) monthSelect.value = filterMonth;
     }
 
@@ -4210,6 +4423,7 @@ function toggleInvestmentFixedFilter() {
 }
 
 function renderInvestment() {
+    renderGrowwHoldingsPanel();
     const tbody = document.getElementById('investmentTable');
     if (!tbody) return;
 
@@ -5007,6 +5221,394 @@ function confirmGpayImport() {
     saveState(); renderAll();
     closeImportModal();
     showToast(selected.length + ' transactions imported from Google Pay!', 'success');
+}
+
+// ===== GROWW PORTFOLIO SYNC =====
+// Groww has no public API for individual investors, so this can't be a live/automatic sync.
+// Instead it reads the Holdings/Balance Statement Excel files Groww lets you download yourself
+// (Profile → Reports, for both Stocks and Mutual Funds) and syncs them into the Asset Portfolio
+// (Admin → Net Worth), matching by holding name so re-uploading later just refreshes values
+// instead of creating duplicates.
+
+function growwNumber(v) {
+    if (v === null || v === undefined || v === '') return 0;
+    if (typeof v === 'number') return v;
+    const n = parseFloat(String(v).replace(/,/g, '').replace(/%/g, '').trim());
+    return isNaN(n) ? 0 : n;
+}
+
+// Scans every sheet of a workbook for a header row matching either the Mutual Fund holdings
+// layout ("Scheme Name...") or the Stocks holdings layout ("Stock Name..."), then parses the
+// data rows beneath it until a blank row. Returns a flat list of { name, category, invested, current, assetType }.
+function parseGrowwWorkbook(workbook) {
+    const holdings = [];
+    workbook.SheetNames.forEach(sheetName => {
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true });
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || !row[0]) continue;
+            const firstCell = String(row[0]).trim().toLowerCase();
+
+            if (firstCell === 'scheme name') {
+                // Mutual Fund holdings table: Scheme Name, AMC, Category, Sub-category, Folio No., Source, Units, Invested Value, Current Value, Returns, XIRR
+                // Groww's export has a blank row right after this header, so blank rows are skipped
+                // (not treated as the end of the table) — only another header or a row with no
+                // Invested Value ends the section.
+                for (let j = i + 1; j < rows.length; j++) {
+                    const r = rows[j];
+                    if (!r || !r[0]) continue;
+                    const cellLower = String(r[0]).trim().toLowerCase();
+                    if (cellLower === 'scheme name' || cellLower === 'stock name') break;
+                    if (r[7] === null || r[7] === undefined) break;
+                    holdings.push({
+                        name: String(r[0]).trim(),
+                        category: [r[2], r[3]].filter(Boolean).join(' - ') || 'Mutual Fund',
+                        invested: growwNumber(r[7]),
+                        current: growwNumber(r[8]),
+                        assetType: 'Mutual Fund'
+                    });
+                }
+            } else if (firstCell === 'stock name') {
+                // Stock holdings table: Stock Name, ISIN, Quantity, Average buy price, Buy value, Closing price, Closing value, Unrealised P&L
+                for (let j = i + 1; j < rows.length; j++) {
+                    const r = rows[j];
+                    if (!r || !r[0]) continue;
+                    const cellLower = String(r[0]).trim().toLowerCase();
+                    if (cellLower === 'scheme name' || cellLower === 'stock name') break;
+                    if (r[4] === null || r[4] === undefined) break;
+                    const name = String(r[0]).trim();
+                    holdings.push({
+                        name,
+                        category: /gold/i.test(name) ? 'Gold ETF' : 'Stocks',
+                        invested: growwNumber(r[4]),
+                        current: growwNumber(r[6]),
+                        assetType: 'Stock'
+                    });
+                }
+            }
+        }
+    });
+
+    // Same scheme can appear more than once (separate folios) — combine into one position per
+    // holding name, since the Asset Portfolio tracks positions, not folio-level bookkeeping.
+    const combined = {};
+    holdings.forEach(h => {
+        const key = h.name.toLowerCase();
+        if (!combined[key]) combined[key] = { ...h };
+        else { combined[key].invested += h.invested; combined[key].current += h.current; }
+    });
+    return Object.values(combined);
+}
+
+let pendingGrowwImport = [];
+
+async function handleGrowwFile(event) {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+    event.target.value = '';
+    showToast('Reading Groww statement...', 'info');
+    try {
+        let allHoldings = [];
+        for (const file of files) {
+            const arrayBuffer = await file.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            allHoldings = allHoldings.concat(parseGrowwWorkbook(workbook));
+        }
+        if (allHoldings.length === 0) {
+            showToast('No holdings found in the uploaded file(s) — make sure it\'s the Groww Holdings/Balance Statement Excel', 'error');
+            return;
+        }
+        pendingGrowwImport = allHoldings.map((h, i) => {
+            const existingIdx = state.assets.findIndex(a => a.name.trim().toLowerCase() === h.name.trim().toLowerCase());
+            return {
+                _rowId: 'gh_' + i,
+                selected: true,
+                name: h.name,
+                category: h.category,
+                assetType: h.assetType,
+                investedValue: Math.round(h.invested * 100) / 100,
+                currentValue: Math.round(h.current * 100) / 100,
+                existingIdx
+            };
+        });
+        openGrowwImportModal();
+    } catch (err) {
+        console.error(err);
+        showToast('Error reading file: ' + err.message, 'error');
+    }
+}
+
+function openGrowwImportModal() {
+    renderGrowwImportReview();
+    document.getElementById('growwImportModal').classList.add('active');
+}
+
+function closeGrowwImportModal() {
+    document.getElementById('growwImportModal').classList.remove('active');
+    pendingGrowwImport = [];
+}
+
+function renderGrowwImportReview() {
+    const total = pendingGrowwImport.length;
+    const updateCount = pendingGrowwImport.filter(r => r.existingIdx > -1).length;
+    document.getElementById('growwImportSummaryBar').innerHTML =
+        '<div><strong>' + total + '</strong> holding' + (total === 1 ? '' : 's') + ' found' + (updateCount ? (' — <strong style="color:var(--info);">' + updateCount + '</strong> already exist in your Asset Portfolio and will be refreshed') : '') + '.</div>' +
+        '<div style="font-size:0.8rem; color:var(--text-muted);">Review the values below, uncheck anything you don\'t want, then sync.</div>';
+
+    const tbody = document.getElementById('growwImportReviewTable');
+    tbody.innerHTML = pendingGrowwImport.map(r => {
+        return '<tr class="import-row">' +
+            '<td><input type="checkbox" ' + (r.selected ? 'checked' : '') + ' onchange="updateGrowwImportField(\'' + r._rowId + '\', \'selected\', this.checked)"></td>' +
+            '<td>' + r.name + '</td>' +
+            '<td><input type="text" value="' + r.category + '" onchange="updateGrowwImportField(\'' + r._rowId + '\', \'category\', this.value)"></td>' +
+            '<td><input type="number" value="' + r.investedValue + '" onchange="updateGrowwImportField(\'' + r._rowId + '\', \'investedValue\', parseFloat(this.value)||0)"></td>' +
+            '<td><input type="number" value="' + r.currentValue + '" onchange="updateGrowwImportField(\'' + r._rowId + '\', \'currentValue\', parseFloat(this.value)||0)"></td>' +
+            '<td>' + (r.existingIdx > -1 ? '<span class="badge badge-primary">Update existing</span>' : '<span class="badge badge-success">New</span>') + '</td>' +
+        '</tr>';
+    }).join('');
+}
+
+function updateGrowwImportField(rowId, field, value) {
+    const row = pendingGrowwImport.find(r => r._rowId === rowId);
+    if (!row) return;
+    row[field] = value;
+}
+
+function toggleAllGrowwImportRows(checked) {
+    pendingGrowwImport.forEach(r => { r.selected = checked; });
+    renderGrowwImportReview();
+}
+
+function confirmGrowwImport() {
+    const selected = pendingGrowwImport.filter(r => r.selected);
+    if (selected.length === 0) { showToast('No holdings selected', 'error'); return; }
+    let added = 0, updated = 0;
+    selected.forEach(r => {
+        const existingIdx = state.assets.findIndex(a => a.name.trim().toLowerCase() === r.name.trim().toLowerCase());
+        if (existingIdx > -1) {
+            state.assets[existingIdx].purchaseValue = r.investedValue;
+            state.assets[existingIdx].currentValue = r.currentValue;
+            state.assets[existingIdx].category = r.category;
+            state.assets[existingIdx].source = 'Groww';
+            updated++;
+        } else {
+            state.assets.push({ name: r.name, category: r.category, purchaseValue: r.investedValue, currentValue: r.currentValue, liquid: true, source: 'Groww' });
+            added++;
+        }
+    });
+    state.growwLastSynced = new Date().toISOString();
+    saveState();
+    renderNetWorth(); renderNetWorthCharts(); renderInvestment(); renderDashboard();
+    closeGrowwImportModal();
+    showToast('Groww portfolio synced — ' + added + ' added, ' + updated + ' updated', 'success');
+}
+
+let growwHoldingsCollapsed = false;
+
+function toggleGrowwHoldingsCollapse() {
+    growwHoldingsCollapsed = !growwHoldingsCollapsed;
+    const body = document.getElementById('growwHoldingsBody');
+    const btn = document.getElementById('growwHoldingsToggleBtn');
+    if (body) body.style.display = growwHoldingsCollapsed ? 'none' : '';
+    if (btn) btn.innerHTML = '<i class="fas fa-chevron-' + (growwHoldingsCollapsed ? 'down' : 'up') + '"></i>';
+}
+
+// Buckets a holding's category string (e.g. "Equity - ELSS", "Debt - Liquid") down to its
+// top-level asset class ("Equity", "Debt") for the balance indicator below.
+function assetClassOf(category) {
+    return (category || '').split(' - ')[0].trim() || 'Other';
+}
+
+// The part after the first " - ", e.g. "Equity - ELSS" -> "ELSS". Used only for the Equity
+// sub-allocation breakdown (Large Cap / Mid Cap / Small Cap / Flexi Cap / ELSS / etc.).
+function equitySubClassOf(category) {
+    const parts = (category || '').split(' - ');
+    return parts.length > 1 ? parts.slice(1).join(' - ').trim() : 'Uncategorized';
+}
+
+// This is a rule-based diversification check against a target allocation the person sets
+// themselves — NOT market prediction, NOT personalized financial advice, and it has no idea
+// what any fund or stock will do next. It only flags where the current mix has drifted from
+// the target the person chose, plus simple single-holding concentration risk. Framed and
+// labeled honestly as such wherever it's shown, so it isn't mistaken for market insight.
+function renderGrowwBalanceIndicator(growwAssets) {
+    const tbody = document.getElementById('growwBalanceTable');
+    if (!tbody) return;
+
+    const classTotals = {};
+    growwAssets.forEach(a => {
+        const cls = assetClassOf(a.category);
+        classTotals[cls] = (classTotals[cls] || 0) + a.currentValue;
+    });
+    const classes = Object.keys(classTotals);
+    const grandTotal = classes.reduce((s, c) => s + classTotals[c], 0);
+
+    if (!state.growwTargetAllocation) state.growwTargetAllocation = {};
+    // Seed a sensible starting target the first time we see a class — the person can edit any of these.
+    const defaultTargets = { 'Equity': 55, 'Debt': 25, 'Stocks': 10, 'Gold ETF': 10 };
+    let seeded = false;
+    classes.forEach(cls => {
+        if (state.growwTargetAllocation[cls] === undefined) {
+            state.growwTargetAllocation[cls] = defaultTargets[cls] !== undefined ? defaultTargets[cls] : Math.round(100 / classes.length);
+            seeded = true;
+        }
+    });
+    if (seeded) saveState();
+
+    tbody.innerHTML = classes.map(cls => {
+        const currentPct = grandTotal > 0 ? (classTotals[cls] / grandTotal) * 100 : 0;
+        const targetPct = state.growwTargetAllocation[cls] || 0;
+        const diff = currentPct - targetPct;
+        let signal, badgeClass;
+        if (diff > 5) { signal = 'Above your target — consider directing new money elsewhere'; badgeClass = 'badge-warning'; }
+        else if (diff < -5) { signal = 'Below your target — room to add more here'; badgeClass = 'badge-success'; }
+        else { signal = 'Roughly on target'; badgeClass = 'badge-primary'; }
+        return '<tr>' +
+            '<td><strong>' + cls + '</strong></td>' +
+            '<td>' + currentPct.toFixed(1) + '%</td>' +
+            '<td><input type="number" class="config-input" style="width:70px;" value="' + targetPct + '" min="0" max="100" onchange="updateGrowwTarget(\'' + cls.replace(/'/g, "&#39;") + '\', parseFloat(this.value)||0)"></td>' +
+            '<td style="color:' + (diff > 0 ? 'var(--warning)' : diff < 0 ? 'var(--secondary)' : 'var(--text-muted)') + ';">' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%</td>' +
+            '<td><span class="badge ' + badgeClass + '">' + signal + '</span></td>' +
+        '</tr>';
+    }).join('');
+
+    // Simple concentration-risk flag: any single holding over a quarter of the whole portfolio
+    const warnEl = document.getElementById('growwConcentrationWarning');
+    if (warnEl) {
+        const heavy = growwAssets.filter(a => grandTotal > 0 && (a.currentValue / grandTotal) > 0.25);
+        warnEl.innerHTML = heavy.length
+            ? heavy.map(a => '<div style="font-size:0.8rem; color:var(--warning);"><i class="fas fa-triangle-exclamation"></i> <strong>' + a.name + '</strong> is ' + ((a.currentValue / grandTotal) * 100).toFixed(1) + '% of this portfolio — a single-holding concentration risk worth keeping an eye on.</div>').join('')
+            : '';
+    }
+
+    renderGrowwEquitySubIndicator(growwAssets);
+}
+
+// Same idea as the asset-class indicator above, but scoped to just the Equity slice — breaks
+// it down by sub-category (ELSS, Large Cap, Mid Cap, Small Cap, Flexi Cap, etc.) so the person
+// can see where within their equity allocation they're overweight or underweight.
+function renderGrowwEquitySubIndicator(growwAssets) {
+    const panel = document.getElementById('growwEquitySubPanel');
+    const tbody = document.getElementById('growwEquitySubTable');
+    if (!panel || !tbody) return;
+
+    const equityAssets = growwAssets.filter(a => assetClassOf(a.category) === 'Equity');
+    if (equityAssets.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+    panel.style.display = '';
+
+    const subTotals = {};
+    equityAssets.forEach(a => {
+        const sub = equitySubClassOf(a.category);
+        subTotals[sub] = (subTotals[sub] || 0) + a.currentValue;
+    });
+    const subs = Object.keys(subTotals);
+    const equityTotal = subs.reduce((s, c) => s + subTotals[c], 0);
+
+    if (!state.growwEquityTargetAllocation) state.growwEquityTargetAllocation = {};
+    let seeded = false;
+    subs.forEach(sub => {
+        if (state.growwEquityTargetAllocation[sub] === undefined) {
+            state.growwEquityTargetAllocation[sub] = Math.round(100 / subs.length);
+            seeded = true;
+        }
+    });
+    if (seeded) saveState();
+
+    tbody.innerHTML = subs.map(sub => {
+        const currentPct = equityTotal > 0 ? (subTotals[sub] / equityTotal) * 100 : 0;
+        const targetPct = state.growwEquityTargetAllocation[sub] || 0;
+        const diff = currentPct - targetPct;
+        let signal, badgeClass;
+        if (diff > 5) { signal = 'Above your target — consider directing new money elsewhere'; badgeClass = 'badge-warning'; }
+        else if (diff < -5) { signal = 'Below your target — room to add more here'; badgeClass = 'badge-success'; }
+        else { signal = 'Roughly on target'; badgeClass = 'badge-primary'; }
+        return '<tr>' +
+            '<td><strong>' + sub + '</strong></td>' +
+            '<td>' + currentPct.toFixed(1) + '%</td>' +
+            '<td><input type="number" class="config-input" style="width:70px;" value="' + targetPct + '" min="0" max="100" onchange="updateGrowwEquityTarget(\'' + sub.replace(/'/g, "&#39;") + '\', parseFloat(this.value)||0)"></td>' +
+            '<td style="color:' + (diff > 0 ? 'var(--warning)' : diff < 0 ? 'var(--secondary)' : 'var(--text-muted)') + ';">' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%</td>' +
+            '<td><span class="badge ' + badgeClass + '">' + signal + '</span></td>' +
+        '</tr>';
+    }).join('');
+}
+
+function updateGrowwEquityTarget(sub, value) {
+    if (!state.growwEquityTargetAllocation) state.growwEquityTargetAllocation = {};
+    state.growwEquityTargetAllocation[sub] = value;
+    saveState();
+    const growwAssets = (state.assets || []).filter(a => a.source === 'Groww');
+    renderGrowwEquitySubIndicator(growwAssets);
+}
+
+function updateGrowwTarget(cls, value) {
+    if (!state.growwTargetAllocation) state.growwTargetAllocation = {};
+    state.growwTargetAllocation[cls] = value;
+    saveState();
+    const growwAssets = (state.assets || []).filter(a => a.source === 'Groww');
+    renderGrowwBalanceIndicator(growwAssets);
+}
+
+// Compact read-only view of synced Groww holdings, right in the Investment tab
+function renderGrowwHoldingsPanel() {
+    const panel = document.getElementById('growwHoldingsPanel');
+    const tbody = document.getElementById('growwHoldingsTable');
+    if (!panel || !tbody) return;
+    const growwAssets = (state.assets || []).filter(a => a.source === 'Groww');
+    if (growwAssets.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+    panel.style.display = '';
+
+    const lastSyncedLabel = document.getElementById('growwLastSyncedLabel');
+    if (lastSyncedLabel) {
+        if (state.growwLastSynced) {
+            const d = new Date(state.growwLastSynced);
+            lastSyncedLabel.textContent = 'Last synced on ' + d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        } else {
+            lastSyncedLabel.textContent = '';
+        }
+    }
+    const body = document.getElementById('growwHoldingsBody');
+    if (body) body.style.display = growwHoldingsCollapsed ? 'none' : '';
+
+    // Category breakdown chart — grouped by current value across whatever categories the
+    // imported holdings carry (e.g. "Equity - ELSS", "Debt - Liquid", "Stocks", "Gold ETF")
+    const catTotals = {};
+    growwAssets.forEach(a => { catTotals[a.category] = (catTotals[a.category] || 0) + a.currentValue; });
+    const catLabels = Object.keys(catTotals);
+    const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#3b82f6', '#06b6d4', '#84cc16', '#f97316'];
+    renderChart('growwCategoryChart', 'doughnut', {
+        labels: catLabels,
+        datasets: [{ data: catLabels.map(c => catTotals[c]), backgroundColor: colors, borderWidth: 0 }]
+    }, { cutout: '60%', plugins: { legend: { display: false } } });
+
+    const legendEl = document.getElementById('growwCategoryLegend');
+    if (legendEl) {
+        const grandTotal = catLabels.reduce((s, c) => s + catTotals[c], 0);
+        legendEl.innerHTML = catLabels.map((c, i) => {
+            const pct = grandTotal > 0 ? (catTotals[c] / grandTotal) * 100 : 0;
+            return '<div class="dash-card" style="padding:10px 14px;">' +
+                '<div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;"><span style="width:10px; height:10px; border-radius:50%; background:' + colors[i % colors.length] + '; display:inline-block;"></span><span style="font-size:0.8rem; color:var(--text-muted);">' + c + '</span></div>' +
+                '<div style="font-weight:700;">' + fmt(catTotals[c]) + '</div>' +
+                '<div style="font-size:0.72rem; color:var(--text-muted);">' + pct.toFixed(1) + '% of portfolio</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    renderGrowwBalanceIndicator(growwAssets);
+
+    tbody.innerHTML = growwAssets.map(a => {
+        const gain = a.currentValue - a.purchaseValue;
+        const ret = a.purchaseValue > 0 ? (gain / a.purchaseValue) * 100 : 0;
+        return '<tr><td><strong>' + a.name + '</strong></td><td>' + a.category + '</td><td>' + fmt(a.purchaseValue) + '</td><td>' + fmt(a.currentValue) + '</td>' +
+            '<td style="color:' + (gain >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(gain) + '</td><td>' + ret.toFixed(1) + '%</td></tr>';
+    }).join('') + '<tr style="font-weight:700; background:rgba(99,102,241,0.1);"><td>TOTAL</td><td></td><td>' +
+        fmt(growwAssets.reduce((s, a) => s + a.purchaseValue, 0)) + '</td><td>' + fmt(growwAssets.reduce((s, a) => s + a.currentValue, 0)) + '</td><td colspan="2"></td></tr>';
 }
 
 function importData(event) {
