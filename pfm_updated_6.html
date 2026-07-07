@@ -593,31 +593,26 @@
                         <div class="chart-container" style="height:220px;"><canvas id="growwCategoryChart"></canvas></div>
                         <div class="dashboard-grid" id="growwCategoryLegend" style="margin-bottom:0;"></div>
                     </div>
-                    <div style="background:rgba(99,102,241,0.04); border:1px solid rgba(99,102,241,0.15); border-radius:12px; padding:16px 18px; margin-bottom:20px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-                            <strong><i class="fas fa-scale-balanced"></i> Portfolio Balance Indicator</strong>
-                            <span style="font-size:0.72rem; color:var(--text-muted);">Rule-based check against <em>your own</em> target allocation below — not a market prediction or financial advice</span>
-                        </div>
-                        <div class="table-container">
-                            <table>
-                                <thead><tr><th>Asset Class</th><th>Current %</th><th>Your Target %</th><th>Diff</th><th>Signal</th></tr></thead>
-                                <tbody id="growwBalanceTable"></tbody>
-                            </table>
-                        </div>
-                        <div id="growwConcentrationWarning" style="margin-top:10px;"></div>
-                        <div id="growwEquitySubPanel" style="display:none; margin-top:16px; padding-top:14px; border-top:1px dashed rgba(148,163,184,0.2);">
-                            <div style="font-size:0.85rem; font-weight:600; margin-bottom:8px;"><i class="fas fa-diagram-project"></i> Equity Sub-allocation <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">(% of your Equity holdings only — ELSS, Large Cap, Mid Cap, Small Cap, Flexi Cap, etc.)</span></div>
-                            <div class="table-container">
-                                <table>
-                                    <thead><tr><th>Equity Sub-category</th><th>Current %</th><th>Your Target %</th><th>Diff</th><th>Signal</th></tr></thead>
-                                    <tbody id="growwEquitySubTable"></tbody>
-                                </table>
+                    <div style="background:rgba(99,102,241,0.04); border:1px solid rgba(99,102,241,0.15); border-radius:12px; padding:14px 18px; margin-bottom:20px;">
+                        <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:10px;"><i class="fas fa-circle-info"></i> Rule-based check against <em>your own</em> target allocation — not a market prediction or financial advice</div>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
+                            <div>
+                                <div style="font-size:0.82rem; font-weight:700; margin-bottom:2px;"><i class="fas fa-scale-balanced"></i> Asset Balance</div>
+                                <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:8px;">Click Equity to see its sub-allocation</div>
+                                <div id="growwBalanceRows"></div>
+                            </div>
+                            <div id="growwEquitySubPanel" style="display:none;">
+                                <div style="font-size:0.82rem; font-weight:700; margin-bottom:2px;"><i class="fas fa-diagram-project"></i> Equity Sub-allocation</div>
+                                <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:8px;">% within Equity only</div>
+                                <div id="growwEquitySubRows"></div>
                             </div>
                         </div>
+                        <div id="growwConcentrationWarning" style="margin-top:10px;"></div>
                     </div>
+                    <div id="growwHoldingsFilterHint" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;"></div>
                     <div class="table-container" id="growwHoldingsTableContainer">
                         <table>
-                            <thead><tr><th>Holding</th><th>Category</th><th>Invested Value</th><th>Current Value</th><th>Gain/Loss</th><th>Return %</th></tr></thead>
+                            <thead><tr><th>Holding</th><th>Category</th><th>Invested Value</th><th>Current Value</th><th>Gain/Loss</th><th>Return %</th><th>XIRR %</th></tr></thead>
                             <tbody id="growwHoldingsTable"></tbody>
                         </table>
                     </div>
@@ -815,7 +810,7 @@
                     </div>
                     <div class="table-container">
                         <table>
-                            <thead><tr><th>Category</th><th>Amount</th><th>Step-up</th><th>Frequency</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
+                            <thead><tr><th>Category</th><th>Fund/Scheme</th><th>Amount</th><th>Step-up</th><th>Frequency</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
                             <tbody id="recurringInvestmentTable"></tbody>
                         </table>
                     </div>
@@ -1088,6 +1083,7 @@
                             <th>Category</th>
                             <th>Invested Value</th>
                             <th>Current Value</th>
+                            <th>XIRR %</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -3455,6 +3451,7 @@ function regenerateRuleInstances(ruleId) {
             member: rule.member,
             vendor: rule.vendor,
             notes: rule.notes,
+            fundName: rule.fundName || '',
             recurringId: rule.id
         });
         cursor = advanceByFrequency(cursor, rule.frequency);
@@ -3526,6 +3523,9 @@ function openRecurringModal(type, id) {
     content.innerHTML =
         '<div class="form-row"><div class="form-group"><label>Category</label><select id="recCategory" onchange="onRecCategoryChange()"></select></div><div class="form-group"><label>Subcategory</label><select id="recSubcategory"></select></div></div>' +
         '<div class="form-row"><div class="form-group" style="margin:0 0 -6px;"><span style="font-size:0.75rem; color:var(--text-muted);"><i class="fas fa-circle-info"></i> Manage category/subcategory options in the <a href="#" onclick="closeModal(); switchTab(\'admin\'); setTimeout(function(){ switchAdminSection(\'category\'); }, 160); return false;" style="color:var(--primary);">Admin</a> tab.</span></div></div>' +
+        (isInvestment
+            ? '<div class="form-group"><label>Fund/Scheme Name <span style="color:var(--text-muted); font-weight:400;">(which mutual fund this SIP invests in)</span></label><input type="text" id="recFundName" value="' + (item && item.fundName ? item.fundName : '') + '" placeholder="e.g. Parag Parikh Flexi Cap Fund"></div>'
+            : '') +
         '<div class="form-row"><div class="form-group"><label>Amount (Rs.)' + (isInvestment ? ' <span style="color:var(--text-muted); font-weight:400;">(starting amount)</span>' : '') + '</label><input type="number" id="recAmount" value="' + (item ? item.amount : '') + '" placeholder="0"></div><div class="form-group"><label>Frequency</label><select id="recFrequency"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Yearly">Yearly</option></select></div></div>' +
         '<div class="form-row"><div class="form-group"><label>From Month</label><input type="month" id="recStartDate" value="' + (item ? item.startDate.slice(0,7) : new Date().toISOString().slice(0,7)) + '"></div><div class="form-group"><label>To Month <span style="color:var(--text-muted); font-weight:400;">(e.g. 2 years later)</span></label><input type="month" id="recEndDate" value="' + (item && item.endDate ? item.endDate.slice(0,7) : '') + '"></div></div>' +
         (isInvestment
@@ -3592,6 +3592,7 @@ function saveRecurringItem() {
     const member = document.getElementById('recMember')?.value;
     const vendor = document.getElementById('recVendor')?.value;
     const notes = document.getElementById('recNotes')?.value;
+    const fundName = document.getElementById('recFundName')?.value.trim();
 
     const type = editingRecurType;
     const classification = type === 'Investment' ? 'Investment' : 'Need';
@@ -3601,6 +3602,7 @@ function saveRecurringItem() {
         type, category, subcategory, classification, amount, frequency, startDate, endDate,
         escalationPct: type === 'Investment' ? escalationPct : 0,
         payment, bank, member, vendor, notes,
+        fundName: type === 'Investment' ? fundName : '',
         active: existing ? existing.active : true
     };
 
@@ -3657,13 +3659,14 @@ function renderRecurringInvestment() {
     if (!tbody) return;
     const rules = (state.recurringItems || []).filter(r => r.type === 'Investment').sort((a, b) => parseDate(a.startDate) - parseDate(b.startDate));
     if (rules.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>No fixed investments set up yet</p></div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>No fixed investments set up yet</p></div></td></tr>';
         return;
     }
     tbody.innerHTML = rules.map(r => {
         const statusBadge = r.active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-warning">Paused</span>';
         const stepUp = r.escalationPct ? ('+' + r.escalationPct + '%/yr') : '—';
-        return '<tr><td><span class="badge badge-primary">' + r.category + '</span>' + (r.subcategory ? '<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">' + r.subcategory + '</div>' : '') + '</td><td style="font-weight:700;">' + fmt(r.amount) + '</td><td>' + stepUp + '</td><td>' + r.frequency + '</td><td>' + formatMonth(r.startDate) + '</td><td>' + (r.endDate ? formatMonth(r.endDate) : 'Ongoing') + '</td><td>' + statusBadge + '</td><td><div class="action-btns"><button class="action-btn edit" onclick="editRecurringItem(\'' + r.id + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="action-btn" style="background:rgba(245,158,11,0.15); color:var(--warning);" onclick="toggleRecurringActive(\'' + r.id + '\')" title="' + (r.active ? 'Pause' : 'Resume') + '"><i class="fas fa-' + (r.active ? 'pause' : 'play') + '"></i></button><button class="action-btn delete" onclick="deleteRecurringItem(\'' + r.id + '\')" title="Delete"><i class="fas fa-trash"></i></button></div></td></tr>';
+        const fundCell = r.fundName ? '<strong>' + r.fundName + '</strong>' : '<span style="color:var(--text-muted);">—</span>';
+        return '<tr><td><span class="badge badge-primary">' + r.category + '</span>' + (r.subcategory ? '<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">' + r.subcategory + '</div>' : '') + '</td><td>' + fundCell + '</td><td style="font-weight:700;">' + fmt(r.amount) + '</td><td>' + stepUp + '</td><td>' + r.frequency + '</td><td>' + formatMonth(r.startDate) + '</td><td>' + (r.endDate ? formatMonth(r.endDate) : 'Ongoing') + '</td><td>' + statusBadge + '</td><td><div class="action-btns"><button class="action-btn edit" onclick="editRecurringItem(\'' + r.id + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="action-btn" style="background:rgba(245,158,11,0.15); color:var(--warning);" onclick="toggleRecurringActive(\'' + r.id + '\')" title="' + (r.active ? 'Pause' : 'Resume') + '"><i class="fas fa-' + (r.active ? 'pause' : 'play') + '"></i></button><button class="action-btn delete" onclick="deleteRecurringItem(\'' + r.id + '\')" title="Delete"><i class="fas fa-trash"></i></button></div></td></tr>';
     }).join('');
 }
 
@@ -5266,6 +5269,9 @@ function parseGrowwWorkbook(workbook) {
                         category: [r[2], r[3]].filter(Boolean).join(' - ') || 'Mutual Fund',
                         invested: growwNumber(r[7]),
                         current: growwNumber(r[8]),
+                        // Column 10 is Groww's own annualized XIRR % for this folio — the true
+                        // annualized return, unlike the simple absolute "Returns %" in column 9.
+                        xirr: (r[10] === null || r[10] === undefined || r[10] === '') ? null : growwNumber(r[10]),
                         assetType: 'Mutual Fund'
                     });
                 }
@@ -5296,9 +5302,22 @@ function parseGrowwWorkbook(workbook) {
     holdings.forEach(h => {
         const key = h.name.toLowerCase();
         if (!combined[key]) combined[key] = { ...h };
-        else { combined[key].invested += h.invested; combined[key].current += h.current; }
+        else {
+            combined[key].invested += h.invested;
+            combined[key].current += h.current;
+            // XIRR isn't additive across folios — approximate the combined position's XIRR as an
+            // invested-value-weighted average of each folio's own XIRR (good enough for display;
+            // not a substitute for a true cash-flow-based XIRR across folios).
+            if (h.xirr !== null && h.xirr !== undefined) {
+                const prevWeight = combined[key]._xirrWeight || 0;
+                const prevXirr = combined[key].xirr || 0;
+                const newWeight = prevWeight + h.invested;
+                combined[key].xirr = newWeight > 0 ? (prevXirr * prevWeight + h.xirr * h.invested) / newWeight : h.xirr;
+                combined[key]._xirrWeight = newWeight;
+            }
+        }
     });
-    return Object.values(combined);
+    return Object.values(combined).map(h => { delete h._xirrWeight; return h; });
 }
 
 let pendingGrowwImport = [];
@@ -5329,6 +5348,7 @@ async function handleGrowwFile(event) {
                 assetType: h.assetType,
                 investedValue: Math.round(h.invested * 100) / 100,
                 currentValue: Math.round(h.current * 100) / 100,
+                xirr: (h.xirr === null || h.xirr === undefined) ? null : Math.round(h.xirr * 100) / 100,
                 existingIdx
             };
         });
@@ -5364,6 +5384,7 @@ function renderGrowwImportReview() {
             '<td><input type="text" value="' + r.category + '" onchange="updateGrowwImportField(\'' + r._rowId + '\', \'category\', this.value)"></td>' +
             '<td><input type="number" value="' + r.investedValue + '" onchange="updateGrowwImportField(\'' + r._rowId + '\', \'investedValue\', parseFloat(this.value)||0)"></td>' +
             '<td><input type="number" value="' + r.currentValue + '" onchange="updateGrowwImportField(\'' + r._rowId + '\', \'currentValue\', parseFloat(this.value)||0)"></td>' +
+            '<td><input type="number" value="' + (r.xirr === null ? '' : r.xirr) + '" placeholder="—" onchange="updateGrowwImportField(\'' + r._rowId + '\', \'xirr\', this.value === \'\' ? null : (parseFloat(this.value)||0))"></td>' +
             '<td>' + (r.existingIdx > -1 ? '<span class="badge badge-primary">Update existing</span>' : '<span class="badge badge-success">New</span>') + '</td>' +
         '</tr>';
     }).join('');
@@ -5391,9 +5412,10 @@ function confirmGrowwImport() {
             state.assets[existingIdx].currentValue = r.currentValue;
             state.assets[existingIdx].category = r.category;
             state.assets[existingIdx].source = 'Groww';
+            state.assets[existingIdx].xirr = (r.xirr === null || r.xirr === undefined) ? null : r.xirr;
             updated++;
         } else {
-            state.assets.push({ name: r.name, category: r.category, purchaseValue: r.investedValue, currentValue: r.currentValue, liquid: true, source: 'Groww' });
+            state.assets.push({ name: r.name, category: r.category, purchaseValue: r.investedValue, currentValue: r.currentValue, liquid: true, source: 'Groww', xirr: (r.xirr === null || r.xirr === undefined) ? null : r.xirr });
             added++;
         }
     });
@@ -5405,6 +5427,29 @@ function confirmGrowwImport() {
 }
 
 let growwHoldingsCollapsed = false;
+// Which Groww category ("Equity - ELSS", "Equity - Largecap", etc.) is currently selected in the
+// legend widgets below the doughnut. '' means no selection, i.e. show every holding.
+let growwSelectedCategory = '';
+// Equity Sub-allocation only shows once the person clicks the "Equity" row in Asset Balance —
+// keeps the panel out of the way until it's actually wanted, and hides again on a second click.
+let growwEquitySubExpanded = false;
+
+function toggleGrowwEquitySubPanel() {
+    growwEquitySubExpanded = !growwEquitySubExpanded;
+    renderGrowwHoldingsPanel();
+}
+
+// Clicking a category legend widget filters the Holdings table below to just that category.
+// Clicking the same widget again clears the filter and shows the full holdings list.
+function filterGrowwByCategory(category) {
+    growwSelectedCategory = (growwSelectedCategory === category) ? '' : category;
+    renderGrowwHoldingsPanel();
+}
+
+function clearGrowwCategoryFilter() {
+    growwSelectedCategory = '';
+    renderGrowwHoldingsPanel();
+}
 
 function toggleGrowwHoldingsCollapse() {
     growwHoldingsCollapsed = !growwHoldingsCollapsed;
@@ -5433,8 +5478,8 @@ function equitySubClassOf(category) {
 // the target the person chose, plus simple single-holding concentration risk. Framed and
 // labeled honestly as such wherever it's shown, so it isn't mistaken for market insight.
 function renderGrowwBalanceIndicator(growwAssets) {
-    const tbody = document.getElementById('growwBalanceTable');
-    if (!tbody) return;
+    const container = document.getElementById('growwBalanceRows');
+    if (!container) return;
 
     const classTotals = {};
     growwAssets.forEach(a => {
@@ -5456,21 +5501,11 @@ function renderGrowwBalanceIndicator(growwAssets) {
     });
     if (seeded) saveState();
 
-    tbody.innerHTML = classes.map(cls => {
+    container.innerHTML = classes.map(cls => {
         const currentPct = grandTotal > 0 ? (classTotals[cls] / grandTotal) * 100 : 0;
         const targetPct = state.growwTargetAllocation[cls] || 0;
-        const diff = currentPct - targetPct;
-        let signal, badgeClass;
-        if (diff > 5) { signal = 'Above your target — consider directing new money elsewhere'; badgeClass = 'badge-warning'; }
-        else if (diff < -5) { signal = 'Below your target — room to add more here'; badgeClass = 'badge-success'; }
-        else { signal = 'Roughly on target'; badgeClass = 'badge-primary'; }
-        return '<tr>' +
-            '<td><strong>' + cls + '</strong></td>' +
-            '<td>' + currentPct.toFixed(1) + '%</td>' +
-            '<td><input type="number" class="config-input" style="width:70px;" value="' + targetPct + '" min="0" max="100" onchange="updateGrowwTarget(\'' + cls.replace(/'/g, "&#39;") + '\', parseFloat(this.value)||0)"></td>' +
-            '<td style="color:' + (diff > 0 ? 'var(--warning)' : diff < 0 ? 'var(--secondary)' : 'var(--text-muted)') + ';">' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%</td>' +
-            '<td><span class="badge ' + badgeClass + '">' + signal + '</span></td>' +
-        '</tr>';
+        const isEquity = cls === 'Equity';
+        return renderBalanceRow(cls, currentPct, targetPct, 'updateGrowwTarget', isEquity ? 'toggleGrowwEquitySubPanel()' : null, isEquity && growwEquitySubExpanded);
     }).join('');
 
     // Simple concentration-risk flag: any single holding over a quarter of the whole portfolio
@@ -5478,11 +5513,35 @@ function renderGrowwBalanceIndicator(growwAssets) {
     if (warnEl) {
         const heavy = growwAssets.filter(a => grandTotal > 0 && (a.currentValue / grandTotal) > 0.25);
         warnEl.innerHTML = heavy.length
-            ? heavy.map(a => '<div style="font-size:0.8rem; color:var(--warning);"><i class="fas fa-triangle-exclamation"></i> <strong>' + a.name + '</strong> is ' + ((a.currentValue / grandTotal) * 100).toFixed(1) + '% of this portfolio — a single-holding concentration risk worth keeping an eye on.</div>').join('')
+            ? heavy.map(a => '<div style="font-size:0.75rem; color:var(--warning);"><i class="fas fa-triangle-exclamation"></i> <strong>' + a.name + '</strong> is ' + ((a.currentValue / grandTotal) * 100).toFixed(1) + '% of this portfolio — concentration risk worth watching.</div>').join('')
             : '';
     }
 
     renderGrowwEquitySubIndicator(growwAssets);
+}
+
+// Shared compact single-line row: label, a slim progress bar for current %, the current % value,
+// an inline editable target % input, and a short signal badge (full explanation in its tooltip).
+// If rowOnClick is passed (only used for the "Equity" row in Asset Balance), the row becomes
+// clickable to expand/collapse the Equity Sub-allocation panel below it.
+function renderBalanceRow(label, currentPct, targetPct, updateFn, rowOnClick, expanded) {
+    const diff = currentPct - targetPct;
+    let signal, badgeClass, barColor;
+    if (diff > 5) { signal = 'Above your target — consider directing new money elsewhere'; badgeClass = 'badge-warning'; barColor = 'var(--warning)'; }
+    else if (diff < -5) { signal = 'Below your target — room to add more here'; badgeClass = 'badge-success'; barColor = 'var(--secondary)'; }
+    else { signal = 'Roughly on target'; badgeClass = 'badge-primary'; barColor = 'var(--primary)'; }
+    const shortSignal = diff > 5 ? 'Over' : diff < -5 ? 'Under' : 'OK';
+    const clickable = !!rowOnClick;
+    return '<div style="display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--border);' + (clickable ? ' cursor:pointer;' + (expanded ? ' background:rgba(99,102,241,0.06);' : '') : '') + '"' + (clickable ? ' onclick="' + rowOnClick + '" title="Click to ' + (expanded ? 'hide' : 'see') + ' the Equity sub-allocation breakdown"' : '') + '>' +
+        (clickable ? '<i class="fas fa-chevron-' + (expanded ? 'down' : 'right') + '" style="font-size:0.65rem; color:var(--text-muted); flex-shrink:0; width:8px;"></i>' : '') +
+        '<div style="width:' + (clickable ? '76px' : '88px') + '; font-size:0.78rem; font-weight:600; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + label + '">' + label + '</div>' +
+        '<div class="progress-bg" style="flex:1; min-width:40px;"><div class="progress-fill" style="width:' + Math.min(currentPct, 100) + '%; background:' + barColor + ';"></div></div>' +
+        '<div style="font-size:0.75rem; width:38px; text-align:right; flex-shrink:0;">' + currentPct.toFixed(1) + '%</div>' +
+        '<div style="display:flex; align-items:center; gap:2px; flex-shrink:0;" title="Your target %" onclick="event.stopPropagation()">' +
+            '<input type="number" class="config-input" style="width:42px; padding:3px 4px; font-size:0.72rem; text-align:center;" value="' + targetPct + '" min="0" max="100" onchange="' + updateFn + '(\'' + label.replace(/'/g, "&#39;") + '\', parseFloat(this.value)||0)">' +
+        '</div>' +
+        '<span class="badge ' + badgeClass + '" style="font-size:0.66rem; padding:2px 7px; flex-shrink:0;" title="' + signal + ' (' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%)">' + shortSignal + '</span>' +
+    '</div>';
 }
 
 // Same idea as the asset-class indicator above, but scoped to just the Equity slice — breaks
@@ -5490,11 +5549,11 @@ function renderGrowwBalanceIndicator(growwAssets) {
 // can see where within their equity allocation they're overweight or underweight.
 function renderGrowwEquitySubIndicator(growwAssets) {
     const panel = document.getElementById('growwEquitySubPanel');
-    const tbody = document.getElementById('growwEquitySubTable');
-    if (!panel || !tbody) return;
+    const container = document.getElementById('growwEquitySubRows');
+    if (!panel || !container) return;
 
     const equityAssets = growwAssets.filter(a => assetClassOf(a.category) === 'Equity');
-    if (equityAssets.length === 0) {
+    if (equityAssets.length === 0 || !growwEquitySubExpanded) {
         panel.style.display = 'none';
         return;
     }
@@ -5518,21 +5577,10 @@ function renderGrowwEquitySubIndicator(growwAssets) {
     });
     if (seeded) saveState();
 
-    tbody.innerHTML = subs.map(sub => {
+    container.innerHTML = subs.map(sub => {
         const currentPct = equityTotal > 0 ? (subTotals[sub] / equityTotal) * 100 : 0;
         const targetPct = state.growwEquityTargetAllocation[sub] || 0;
-        const diff = currentPct - targetPct;
-        let signal, badgeClass;
-        if (diff > 5) { signal = 'Above your target — consider directing new money elsewhere'; badgeClass = 'badge-warning'; }
-        else if (diff < -5) { signal = 'Below your target — room to add more here'; badgeClass = 'badge-success'; }
-        else { signal = 'Roughly on target'; badgeClass = 'badge-primary'; }
-        return '<tr>' +
-            '<td><strong>' + sub + '</strong></td>' +
-            '<td>' + currentPct.toFixed(1) + '%</td>' +
-            '<td><input type="number" class="config-input" style="width:70px;" value="' + targetPct + '" min="0" max="100" onchange="updateGrowwEquityTarget(\'' + sub.replace(/'/g, "&#39;") + '\', parseFloat(this.value)||0)"></td>' +
-            '<td style="color:' + (diff > 0 ? 'var(--warning)' : diff < 0 ? 'var(--secondary)' : 'var(--text-muted)') + ';">' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%</td>' +
-            '<td><span class="badge ' + badgeClass + '">' + signal + '</span></td>' +
-        '</tr>';
+        return renderBalanceRow(sub, currentPct, targetPct, 'updateGrowwEquityTarget');
     }).join('');
 }
 
@@ -5590,25 +5638,54 @@ function renderGrowwHoldingsPanel() {
     const legendEl = document.getElementById('growwCategoryLegend');
     if (legendEl) {
         const grandTotal = catLabels.reduce((s, c) => s + catTotals[c], 0);
+        // Selecting a category that no longer exists in this sync (e.g. after re-import) falls back to "all"
+        if (growwSelectedCategory && !catLabels.includes(growwSelectedCategory)) growwSelectedCategory = '';
         legendEl.innerHTML = catLabels.map((c, i) => {
             const pct = grandTotal > 0 ? (catTotals[c] / grandTotal) * 100 : 0;
-            return '<div class="dash-card" style="padding:10px 14px;">' +
+            const isActive = growwSelectedCategory === c;
+            return '<div class="dash-card" style="padding:10px 14px; cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterGrowwByCategory(\'' + c.replace(/'/g, "&#39;") + '\')" title="Click to see only this category\'s holdings below">' +
                 '<div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;"><span style="width:10px; height:10px; border-radius:50%; background:' + colors[i % colors.length] + '; display:inline-block;"></span><span style="font-size:0.8rem; color:var(--text-muted);">' + c + '</span></div>' +
                 '<div style="font-weight:700;">' + fmt(catTotals[c]) + '</div>' +
-                '<div style="font-size:0.72rem; color:var(--text-muted);">' + pct.toFixed(1) + '% of portfolio</div>' +
+                '<div style="font-size:0.72rem; color:var(--text-muted);">' + pct.toFixed(1) + '% of portfolio' + (isActive ? ' &middot; <strong style="color:var(--primary);">selected</strong>' : '') + '</div>' +
             '</div>';
         }).join('');
     }
 
     renderGrowwBalanceIndicator(growwAssets);
 
-    tbody.innerHTML = growwAssets.map(a => {
+    // No category selected -> full list. Otherwise, only holdings in the clicked category.
+    const shownAssets = growwSelectedCategory ? growwAssets.filter(a => a.category === growwSelectedCategory) : growwAssets;
+
+    const filterHintEl = document.getElementById('growwHoldingsFilterHint');
+    if (filterHintEl) {
+        filterHintEl.innerHTML = growwSelectedCategory
+            ? 'Showing <strong>' + shownAssets.length + '</strong> of ' + growwAssets.length + ' holdings in <strong>' + growwSelectedCategory + '</strong> &nbsp;<a href="#" onclick="clearGrowwCategoryFilter(); return false;" style="color:var(--primary);">Clear filter &times;</a>'
+            : '';
+    }
+
+    tbody.innerHTML = shownAssets.map(a => {
         const gain = a.currentValue - a.purchaseValue;
         const ret = a.purchaseValue > 0 ? (gain / a.purchaseValue) * 100 : 0;
+        const xirrCell = (a.xirr === null || a.xirr === undefined) ? '<span style="color:var(--text-muted);">—</span>' : ('<span style="color:' + (a.xirr >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + a.xirr.toFixed(1) + '%</span>');
         return '<tr><td><strong>' + a.name + '</strong></td><td>' + a.category + '</td><td>' + fmt(a.purchaseValue) + '</td><td>' + fmt(a.currentValue) + '</td>' +
-            '<td style="color:' + (gain >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(gain) + '</td><td>' + ret.toFixed(1) + '%</td></tr>';
-    }).join('') + '<tr style="font-weight:700; background:rgba(99,102,241,0.1);"><td>TOTAL</td><td></td><td>' +
-        fmt(growwAssets.reduce((s, a) => s + a.purchaseValue, 0)) + '</td><td>' + fmt(growwAssets.reduce((s, a) => s + a.currentValue, 0)) + '</td><td colspan="2"></td></tr>';
+            '<td style="color:' + (gain >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(gain) + '</td><td>' + ret.toFixed(1) + '%</td><td>' + xirrCell + '</td></tr>';
+    }).join('') + (() => {
+        const totalInvested = shownAssets.reduce((s, a) => s + a.purchaseValue, 0);
+        const totalCurrent = shownAssets.reduce((s, a) => s + a.currentValue, 0);
+        const totalGain = totalCurrent - totalInvested;
+        // Weighted by invested value (i.e. total gain / total invested) — this is the return of the
+        // combined pool of money, not a simple average of each holding's individual % return.
+        const avgReturn = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
+        // Portfolio-level XIRR blend: invested-value-weighted average of each holding's own XIRR.
+        // Not a true XIRR of the combined cash-flow stream, just a quick weighted approximation.
+        const xirrHoldings = shownAssets.filter(a => a.xirr !== null && a.xirr !== undefined);
+        const xirrWeightTotal = xirrHoldings.reduce((s, a) => s + a.purchaseValue, 0);
+        const avgXirr = xirrWeightTotal > 0 ? xirrHoldings.reduce((s, a) => s + a.xirr * a.purchaseValue, 0) / xirrWeightTotal : null;
+        const avgXirrCell = avgXirr === null ? '<span style="color:var(--text-muted);">—</span>' : (avgXirr.toFixed(1) + '%');
+        return '<tr style="font-weight:700; background:rgba(99,102,241,0.1);"><td>TOTAL' + (growwSelectedCategory ? ' (filtered)' : '') + '</td><td></td><td>' +
+            fmt(totalInvested) + '</td><td>' + fmt(totalCurrent) + '</td>' +
+            '<td style="color:' + (totalGain >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + fmt(totalGain) + '</td><td>' + avgReturn.toFixed(1) + '%</td><td>' + avgXirrCell + '</td></tr>';
+    })();
 }
 
 function importData(event) {
