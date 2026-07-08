@@ -5776,7 +5776,15 @@ function renderGrowwHoldingsPanel() {
         if (s.matchedHolding && !sipByHoldingName[s.matchedHolding]) sipByHoldingName[s.matchedHolding] = s;
     });
 
-    tbody.innerHTML = shownAssets.map(a => {
+    // Active-SIP holdings first (so the funds you're currently topping up monthly are easy to
+    // spot at a glance), everything else keeps its existing relative order after that.
+    const sortedAssets = [...shownAssets].sort((a, b) => {
+        const aHasSip = sipByHoldingName[a.name] ? 1 : 0;
+        const bHasSip = sipByHoldingName[b.name] ? 1 : 0;
+        return bHasSip - aHasSip;
+    });
+
+    tbody.innerHTML = sortedAssets.map(a => {
         const gain = a.currentValue - a.purchaseValue;
         const ret = a.purchaseValue > 0 ? (gain / a.purchaseValue) * 100 : 0;
         const xirrCell = (a.xirr === null || a.xirr === undefined) ? '<span style="color:var(--text-muted);">—</span>' : ('<span style="color:' + (a.xirr >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + a.xirr.toFixed(1) + '%</span>');
