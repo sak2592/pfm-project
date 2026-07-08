@@ -11,20 +11,22 @@
  *                               subcategory
  *   - Transactions            (id, date, type, category, subcategory,
  *                               classification, amount, payment, bank,
- *                               member, vendor, notes, recurringId, loanId)
+ *                               member, vendor, notes, fundName, recurringId, loanId)
  *   - Loans                   (id, name, lender, principal, outstanding,
  *                               rate, tenure, emi, startDate, type,
  *                               autoOutstanding)
  *   - Goals                   (id, name, icon, target, saved, monthly,
  *                               targetDate, priority, description)
  *   - Assets                  (name, category, purchaseValue,
- *                               currentValue, liquid)
+ *                               currentValue, liquid, source, xirr)
  *   - RecurringItems          (id, type, category, subcategory,
  *                               classification, amount, frequency,
  *                               startDate, endDate, payment, bank, member,
- *                               vendor, notes, escalationPct, active)
+ *                               vendor, notes, escalationPct, fundName, active)
  *   - SalaryHistory           (date, salary)
  *   - Settings                (key, value)  <-- current salary + last saved
+ *   - BankAccounts            (id, name, openingBalance)
+ *   - Transfers               (id, date, fromBank, toBank, amount, notes)
  *
  * SETUP:
  * 1. Create a new Google Sheet.
@@ -59,17 +61,19 @@ const SHEETS = {
   salaryHistory: 'SalaryHistory',
   settings: 'Settings',
   monthlyBudgetTargets: 'MonthlyBudgetTargets',
-  activeSips: 'ActiveSIPs'
+  activeSips: 'ActiveSIPs',
+  bankAccounts: 'BankAccounts',
+  transfers: 'Transfers'
 };
 
 // ===== COLUMN DEFINITIONS FOR SIMPLE (1 row = 1 object) TABLES =====
 const HEADERS = {
   categories: ['id', 'name', 'targetPct', 'priority', 'classification'],
-  transactions: ['id', 'date', 'type', 'category', 'subcategory', 'classification', 'amount', 'payment', 'bank', 'member', 'vendor', 'notes', 'recurringId', 'loanId'],
+  transactions: ['id', 'date', 'type', 'category', 'subcategory', 'classification', 'amount', 'payment', 'bank', 'member', 'vendor', 'notes', 'fundName', 'recurringId', 'loanId'],
   loans: ['id', 'name', 'lender', 'principal', 'outstanding', 'rate', 'tenure', 'emi', 'startDate', 'type', 'autoOutstanding'],
   goals: ['id', 'name', 'icon', 'target', 'saved', 'monthly', 'targetDate', 'priority', 'description'],
-  assets: ['name', 'category', 'purchaseValue', 'currentValue', 'liquid'],
-  recurringItems: ['id', 'type', 'category', 'subcategory', 'classification', 'amount', 'frequency', 'startDate', 'endDate', 'payment', 'bank', 'member', 'vendor', 'notes', 'escalationPct', 'active'],
+  assets: ['name', 'category', 'purchaseValue', 'currentValue', 'liquid', 'source', 'xirr'],
+  recurringItems: ['id', 'type', 'category', 'subcategory', 'classification', 'amount', 'frequency', 'startDate', 'endDate', 'payment', 'bank', 'member', 'vendor', 'notes', 'escalationPct', 'fundName', 'active'],
   salaryHistory: ['date', 'salary'],
   categoryConfig: ['id', 'type', 'category', 'subcategory'],
   // One row per category per month where the target % has been overridden
@@ -82,13 +86,19 @@ const HEADERS = {
   // every save, so editing it directly in the Sheet has no effect — edit the actual Fixed
   // Investment in the app instead.
   activeSips: ['id', 'category', 'subcategory', 'fundName', 'amount', 'frequency', 'startDate',
-    'escalationPct', 'matchedHolding', 'matchedInvested', 'matchedCurrent', 'matchedXirr']
+    'escalationPct', 'matchedHolding', 'matchedInvested', 'matchedCurrent', 'matchedXirr'],
+  // Bank accounts (e.g. HDFC Savings, ICICI Savings) with a starting balance from before
+  // the user began logging transactions in the app.
+  bankAccounts: ['id', 'name', 'openingBalance'],
+  // Money moved between the user's own accounts, kept separate from Transactions so it's
+  // never double-counted as Income/Expense.
+  transfers: ['id', 'date', 'fromBank', 'toBank', 'amount', 'notes']
 };
 
 // Fields that should always come back as numbers.
 const NUMERIC_FIELDS = ['targetPct', 'amount', 'principal', 'outstanding', 'rate', 'tenure', 'emi',
   'target', 'saved', 'monthly', 'purchaseValue', 'currentValue', 'escalationPct', 'salary',
-  'matchedInvested', 'matchedCurrent', 'matchedXirr'];
+  'matchedInvested', 'matchedCurrent', 'matchedXirr', 'openingBalance'];
 
 // Fields that should always come back as booleans.
 const BOOLEAN_FIELDS = ['autoOutstanding', 'liquid', 'active'];
@@ -117,6 +127,10 @@ function toBool_(v) {
   return !!v;
 }
 
+// Numeric fields that should stay null (not become 0) when the cell is blank -
+// e.g. XIRR isn't always computable for a holding, and 0% is a real, different value.
+const NULLABLE_NUMERIC_FIELDS = ['xirr', 'matchedXirr'];
+
 function toNum_(v) {
   if (v === '' || v === null || v === undefined) return 0;
   const n = Number(v);
@@ -131,8 +145,86 @@ function toDateStr_(v, monthOnly) {
 }
 
 /**
+ * Like writeTable_, but instead of clearing and rewriting the whole sheet every time,
+ * this diffs against what's already there (matched by the "id" column) and:
+ *   - APPENDS brand-new records in one batch call
+ *   - UPDATES only the specific rows whose data actually changed
+ *   - DELETES only the rows for records removed on the client (e.g. a deleted transaction)
+ * Everything else on the sheet is left completely untouched.
+ *
+ * Only usable for tables whose `headers` include an 'id' column with stable, unique values
+ * (Transactions, Loans, Goals, RecurringItems, BankAccounts, Transfers, MonthlyBudgetTargets,
+ * BudgetCategories). Tables without a reliable id (Assets, SalaryHistory) still use
+ * writeTable_ - falls back to it automatically here too, just in case.
+ */
+function upsertTable_(sheetName, headers, objects) {
+  const idIdx = headers.indexOf('id');
+  if (idIdx === -1) {
+    writeTable_(sheetName, headers, objects);
+    return;
+  }
+
+  const sheet = getSheet_(sheetName);
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+
+  const lastRow = sheet.getLastRow();
+  const existingRows = lastRow >= 2 ? sheet.getRange(2, 1, lastRow - 1, headers.length).getValues() : [];
+
+  // id -> { rowNum, values } for everything currently on the sheet
+  const existingById = {};
+  existingRows.forEach(function (row, i) {
+    const id = row[idIdx];
+    if (id !== '' && id !== null && id !== undefined) {
+      existingById[String(id)] = { rowNum: i + 2, values: row };
+    }
+  });
+
+  const incomingIds = {};
+  const rowsToAppend = [];
+
+  (objects || []).forEach(function (obj) {
+    const id = String(obj.id);
+    incomingIds[id] = true;
+    const rowValues = headers.map(function (h) {
+      const v = obj[h];
+      return v === undefined || v === null ? '' : v;
+    });
+
+    const existing = existingById[id];
+    if (!existing) {
+      rowsToAppend.push(rowValues);
+    } else {
+      // Only write to the sheet if something in this row actually changed
+      const changed = rowValues.some(function (v, i) { return String(v) !== String(existing.values[i]); });
+      if (changed) {
+        sheet.getRange(existing.rowNum, 1, 1, headers.length).setValues([rowValues]);
+      }
+    }
+  });
+
+  if (rowsToAppend.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, rowsToAppend.length, headers.length).setValues(rowsToAppend);
+  }
+
+  // Rows whose id no longer appears in the incoming data were deleted client-side - remove them
+  // from the bottom up so earlier row numbers don't shift while we're still deleting.
+  const rowNumsToDelete = [];
+  Object.keys(existingById).forEach(function (id) {
+    if (!incomingIds[id]) rowNumsToDelete.push(existingById[id].rowNum);
+  });
+  rowNumsToDelete.sort(function (a, b) { return b - a; }).forEach(function (rowNum) {
+    sheet.deleteRow(rowNum);
+  });
+}
+
+/**
  * Writes an array of plain objects to a sheet as a simple table:
  * header row + one row per object, in the given column order.
+ * Clears and rewrites the whole sheet - only used for tables without a reliable
+ * id column (Assets, SalaryHistory) or ones that are always fully regenerated
+ * anyway (ActiveSIPs). Everything else uses upsertTable_ instead.
  */
 function writeTable_(sheetName, headers, objects) {
   const sheet = getSheet_(sheetName);
@@ -165,7 +257,9 @@ function readTable_(sheetName, headers) {
       const obj = {};
       headers.forEach(function (h, i) {
         let val = row[i];
-        if (NUMERIC_FIELDS.indexOf(h) !== -1) {
+        if (NULLABLE_NUMERIC_FIELDS.indexOf(h) !== -1) {
+          val = (val === '' || val === null || val === undefined) ? null : toNum_(val);
+        } else if (NUMERIC_FIELDS.indexOf(h) !== -1) {
           val = toNum_(val);
         } else if (BOOLEAN_FIELDS.indexOf(h) !== -1) {
           val = toBool_(val);
@@ -255,7 +349,9 @@ function doGet(e) {
         recurringItems: readTable_(SHEETS.recurringItems, HEADERS.recurringItems),
         salaryHistory: readTable_(SHEETS.salaryHistory, HEADERS.salaryHistory),
         monthlyBudgetTargets: readTable_(SHEETS.monthlyBudgetTargets, HEADERS.monthlyBudgetTargets),
-        activeSips: readTable_(SHEETS.activeSips, HEADERS.activeSips)
+        activeSips: readTable_(SHEETS.activeSips, HEADERS.activeSips),
+        bankAccounts: readTable_(SHEETS.bankAccounts, HEADERS.bankAccounts),
+        transfers: readTable_(SHEETS.transfers, HEADERS.transfers)
       };
       return jsonResponse_(Object.assign({ status: 'ok' }, state));
     }
@@ -291,16 +387,18 @@ function doPost(e) {
       lock.waitLock(10000);
       try {
         writeSettings_(state);
-        writeTable_(SHEETS.categories, HEADERS.categories, state.categories);
+        upsertTable_(SHEETS.categories, HEADERS.categories, state.categories);
         writeCategoryConfig_(state.categoryConfig);
-        writeTable_(SHEETS.transactions, HEADERS.transactions, state.transactions);
-        writeTable_(SHEETS.loans, HEADERS.loans, state.loans);
-        writeTable_(SHEETS.goals, HEADERS.goals, state.goals);
+        upsertTable_(SHEETS.transactions, HEADERS.transactions, state.transactions);
+        upsertTable_(SHEETS.loans, HEADERS.loans, state.loans);
+        upsertTable_(SHEETS.goals, HEADERS.goals, state.goals);
         writeTable_(SHEETS.assets, HEADERS.assets, state.assets);
-        writeTable_(SHEETS.recurringItems, HEADERS.recurringItems, state.recurringItems);
+        upsertTable_(SHEETS.recurringItems, HEADERS.recurringItems, state.recurringItems);
         writeTable_(SHEETS.salaryHistory, HEADERS.salaryHistory, state.salaryHistory);
-        writeTable_(SHEETS.monthlyBudgetTargets, HEADERS.monthlyBudgetTargets, state.monthlyBudgetTargets);
+        upsertTable_(SHEETS.monthlyBudgetTargets, HEADERS.monthlyBudgetTargets, state.monthlyBudgetTargets);
         writeTable_(SHEETS.activeSips, HEADERS.activeSips, state.activeSips);
+        upsertTable_(SHEETS.bankAccounts, HEADERS.bankAccounts, state.bankAccounts);
+        upsertTable_(SHEETS.transfers, HEADERS.transfers, state.transfers);
       } finally {
         lock.releaseLock();
       }
