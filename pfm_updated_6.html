@@ -152,6 +152,36 @@
         .config-row td:last-child { border-radius: 0 12px 12px 0; }
         .config-input { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: inherit; font-size: 0.9rem; width: 100%; transition: all 0.2s; }
         .config-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+
+        /* ===== Custom professional date picker (replaces native <input type=date>) ===== */
+        .dp-input-wrap { position: relative; }
+        .dp-input { cursor: pointer; background: rgba(15,23,42,0.5); padding-right: 34px; }
+        .dp-input.dp-open { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+        .dp-popup { position: fixed; z-index: 3000; width: 300px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.55); padding: 14px; display: none; font-family: inherit; }
+        .dp-popup.dp-visible { display: block; animation: fadeIn 0.15s ease; }
+        .dp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 6px; }
+        .dp-nav-btn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; transition: all 0.15s; flex-shrink: 0; }
+        .dp-nav-btn:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+        .dp-title-btn { flex: 1; text-align: center; background: none; border: none; color: var(--text); font-weight: 700; font-size: 0.92rem; cursor: pointer; padding: 6px 4px; border-radius: 8px; transition: background 0.15s; }
+        .dp-title-btn:hover { background: rgba(255,255,255,0.06); }
+        .dp-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
+        .dp-weekdays span { text-align: center; font-size: 0.68rem; color: var(--text-muted); font-weight: 700; padding: 4px 0; }
+        .dp-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .dp-day { aspect-ratio: 1; border: none; background: none; color: var(--text); font-size: 0.8rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+        .dp-day:hover { background: rgba(99,102,241,0.25); }
+        .dp-day.dp-muted { color: var(--text-muted); opacity: 0.4; }
+        .dp-day.dp-today { box-shadow: inset 0 0 0 1px var(--secondary); color: var(--secondary); font-weight: 700; }
+        .dp-day.dp-selected { background: var(--primary); color: #fff; font-weight: 700; }
+        .dp-day.dp-selected:hover { background: var(--primary-dark); }
+        .dp-footer { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+        .dp-footer button { flex: 1; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); color: var(--text); font-family: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+        .dp-footer button:hover { border-color: var(--primary); background: rgba(99,102,241,0.15); }
+        .dp-yearview-head { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; }
+        .dp-yearview-head input { width: 80px; text-align: center; background: rgba(15,23,42,0.6); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 0.95rem; font-weight: 700; padding: 6px 4px; }
+        .dp-months-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .dp-month-cell { padding: 10px 4px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.02); color: var(--text); font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.15s; }
+        .dp-month-cell:hover { border-color: var(--primary); background: rgba(99,102,241,0.15); }
+        .dp-month-cell.dp-selected { background: var(--primary); border-color: var(--primary); color: #fff; }
         .priority-select { padding: 6px 12px; border-radius: 20px; border: none; font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
         .type-select { padding: 6px 12px; border-radius: 20px; border: none; font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
         .type-select.type-Income { background: rgba(16,185,129,0.15); color: var(--secondary); }
@@ -1399,6 +1429,7 @@ let incomeSelectedCategory = '';
 let incomeCatEntries = [];
 let incomeQuickFilter = ''; // '' | 'month' | 'total' — drives the This Month / Total Income card drill-down
 let editingType = null;
+let prepayModalEditIdx = null; // index (into the sorted prepayment list) currently being edited in the Prepay modal, or null when adding new
 let currentTab = 'overview';
 let currentAdminSection = 'category';
 let txCurrentPage = 1;
@@ -1407,9 +1438,18 @@ let txPageSize = 25;
 // ===== CORE DATA FUNCTIONS =====
 function saveState() {
     try {
+        state.lastModified = Date.now();
         localStorage.setItem('pfms_v3', JSON.stringify(state));
+        // Read back what we just wrote so a silent quota/serialization failure (which some
+        // browsers swallow without throwing) is caught here rather than surfacing later as
+        // "my data disappeared after reload".
+        const check = localStorage.getItem('pfms_v3');
+        if (!check) throw new Error('Save verification failed - localStorage read-back was empty');
     } catch(e) {
         console.error('Save failed', e);
+        if (typeof showToast === 'function') {
+            showToast('Could not save your changes locally (' + e.message + '). Please free up browser storage or check your privacy settings.', 'error');
+        }
     }
 }
 
@@ -1442,6 +1482,9 @@ function loadData() {
         }
     } catch (e) {
         console.error('Load error', e);
+        if (typeof showToast === 'function') {
+            showToast('Could not load your saved data (' + e.message + '). Falling back to defaults so nothing crashes, but check the browser console.', 'error');
+        }
     }
 }
 
@@ -1608,6 +1651,24 @@ loadData = async function() {
     if (CONFIG.GAS_URL) {
         const sheetData = await loadDataFromSheets();
         if (sheetData && sheetData.status === 'ok') {
+            // Guard against a race: if this device saved locally more recently than the cloud
+            // copy being loaded (e.g. a prior sync to Sheets never finished, or two tabs/devices
+            // are out of sync), pulling in the older sheetData would silently erase the newest
+            // local changes - which is exactly what "I added a prepayment and after reloading
+            // it's gone" looks like. Only accept the cloud copy if it isn't older than what's
+            // already saved locally.
+            let localSaved = null;
+            try { localSaved = JSON.parse(localStorage.getItem('pfms_v3') || 'null'); } catch (e) {}
+            const localTime = localSaved && localSaved.lastModified ? localSaved.lastModified : 0;
+            const remoteTime = sheetData.lastModified || 0;
+            if (localSaved && localTime > 0 && remoteTime > 0 && localTime > remoteTime) {
+                console.warn('Local data (', new Date(localTime), ') is newer than Sheets data (', new Date(remoteTime), ') - keeping local copy and re-syncing to Sheets instead of overwriting.');
+                _originalLoadData();
+                if (typeof showToast === 'function') showToast('Local changes were newer than Google Sheets - kept your local data and re-syncing to Sheets.', 'success');
+                // Push the newer local copy back up so Sheets catches up, instead of leaving them mismatched.
+                saveDataToSheets();
+                return;
+            }
             state = { ...state, ...sheetData };
             if (!state.categories || state.categories.length === 0) state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
             if (!state.categoryConfig || state.categoryConfig.length === 0) state.categoryConfig = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_CONFIG));
@@ -3297,7 +3358,7 @@ function renderAmortization() {
         prepayRows +
         summaryHtml +
         '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; align-items:flex-end;">' +
-            '<div><label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Date</label><input type="date" class="config-input" id="prepayDate_' + loan.id + '" value="' + fmtDateStr(today) + '"></div>' +
+            '<div><label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Date</label>' + dpFieldHtml('prepayDate_' + loan.id, fmtDateStr(today)) + '</div>' +
             '<div><label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Amount</label><input type="number" class="config-input" id="prepayAmount_' + loan.id + '" placeholder="e.g. 100000"></div>' +
             '<button class="btn btn-primary" onclick="addLoanPrepayment(\'' + loan.id + '\')"><i class="fas fa-plus"></i> Add Prepayment</button>' +
         '</div>' +
@@ -3319,9 +3380,8 @@ function renderAmortization() {
 function addLoanPrepayment(loanId) {
     const loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
-    const dateEl = document.getElementById('prepayDate_' + loanId);
     const amountEl = document.getElementById('prepayAmount_' + loanId);
-    const date = dateEl?.value;
+    const date = dpValue('prepayDate_' + loanId);
     const amount = parseFloat(amountEl?.value);
     if (!date || !amount || amount <= 0) { showToast('Enter a valid prepayment date and amount', 'error'); return; }
     if (!loan.prepayments) loan.prepayments = [];
@@ -3330,8 +3390,6 @@ function addLoanPrepayment(loanId) {
     regenerateLoanInstances(loanId);
     saveState();
     renderAll();
-    const modalEl = document.getElementById('modal');
-    if (modalEl && modalEl.classList.contains('active') && editingType === 'prepay') closeModal();
     showToast('Prepayment added!', 'success');
 }
 
@@ -3346,6 +3404,98 @@ function removeLoanPrepayment(loanId, idx) {
     regenerateLoanInstances(loanId);
     saveState();
     renderAll();
+    showToast('Prepayment removed', 'success');
+}
+
+// ---- Prepay modal: lists existing prepayments (with edit/delete) above an add/update form. ----
+// Kept separate from the inline Amortization-tab form above since both can be on-screen for the
+// same loan at once, and previously clashed silently by sharing the same element ids.
+function renderPrepayModal(loanId) {
+    const loan = state.loans.find(l => l.id === loanId);
+    const modalEl = document.getElementById('modal');
+    const title = document.getElementById('modalTitle');
+    const content = document.getElementById('modalContent');
+    if (!loan || !modalEl || !title || !content) return;
+    if (!loan.prepayments) loan.prepayments = [];
+
+    const sortedPrepayments = loan.prepayments
+        .map((p, i) => ({ p, i }))
+        .sort((a, b) => parseDate(a.p.date) - parseDate(b.p.date));
+
+    const editing = (prepayModalEditIdx !== null && sortedPrepayments[prepayModalEditIdx]) ? sortedPrepayments[prepayModalEditIdx] : null;
+
+    const listHtml = sortedPrepayments.length === 0
+        ? '<div style="font-size:0.85rem; color:var(--text-muted); padding:6px 0;">No prepayments recorded yet.</div>'
+        : sortedPrepayments.map(({ p }, idx) => '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 10px; background:' + (prepayModalEditIdx === idx ? 'rgba(99,102,241,0.15);' : 'rgba(255,255,255,0.03);') + ' border-radius:8px; margin-bottom:6px;"><span>' + parseDate(p.date).toLocaleDateString('en-IN') + ' &nbsp;-&nbsp; <strong>' + fmt(p.amount) + '</strong></span><span class="action-btns"><button class="action-btn edit" onclick="editLoanPrepaymentModal(\'' + loan.id + '\',' + idx + ')" title="Edit"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteLoanPrepaymentModal(\'' + loan.id + '\',' + idx + ')" title="Remove"><i class="fas fa-trash"></i></button></span></div>').join('');
+
+    title.textContent = 'Prepay - ' + loan.name;
+    content.innerHTML = '<div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px; padding:12px; background:rgba(16,185,129,0.08); border-radius:10px;">Current Outstanding: <strong style="color:var(--text);">' + fmt(loan.outstanding) + '</strong> at ' + loan.rate + '% p.a. &middot; A lump-sum prepayment reduces the balance so the loan pays off sooner (tenure shortens, EMI stays the same).</div>' +
+        '<div style="font-weight:700; margin-bottom:10px;"><i class="fas fa-clock-rotate-left"></i> Previous Prepayments</div>' +
+        listHtml +
+        '<div class="form-row" style="margin-top:16px;"><div class="form-group"><label>Date</label>' + dpFieldHtml('prepayDateModal_' + loan.id, editing ? editing.p.date : fmtDateStr(new Date())) + '</div><div class="form-group"><label>Amount (Rs.)</label><input type="number" id="prepayAmountModal_' + loan.id + '" value="' + (editing ? editing.p.amount : '') + '" placeholder="e.g. 100000"></div></div>' +
+        '<div style="display:flex; gap:10px;">' +
+            '<button class="btn btn-primary" style="flex:1;" onclick="saveLoanPrepaymentModal(\'' + loan.id + '\')"><i class="fas fa-bolt"></i> ' + (editing ? 'Update Prepayment' : 'Add Prepayment') + '</button>' +
+            (editing ? '<button class="btn btn-secondary" onclick="cancelPrepayEditModal(\'' + loan.id + '\')">Cancel</button>' : '') +
+        '</div>';
+}
+
+function editLoanPrepaymentModal(loanId, sortedIdx) {
+    prepayModalEditIdx = sortedIdx;
+    renderPrepayModal(loanId);
+}
+
+function cancelPrepayEditModal(loanId) {
+    prepayModalEditIdx = null;
+    renderPrepayModal(loanId);
+}
+
+function saveLoanPrepaymentModal(loanId) {
+    const loan = state.loans.find(l => l.id === loanId);
+    if (!loan) return;
+    const amountEl = document.getElementById('prepayAmountModal_' + loanId);
+    const date = dpValue('prepayDateModal_' + loanId);
+    const amount = parseFloat(amountEl?.value);
+    if (!date || !amount || amount <= 0) { showToast('Enter a valid prepayment date and amount', 'error'); return; }
+    if (!loan.prepayments) loan.prepayments = [];
+
+    const wasEdit = prepayModalEditIdx !== null;
+    if (wasEdit) {
+        const sorted = loan.prepayments.map((p, i) => ({ p, i })).sort((a, b) => parseDate(a.p.date) - parseDate(b.p.date));
+        const target = sorted[prepayModalEditIdx];
+        if (!target) {
+            prepayModalEditIdx = null;
+            showToast('Could not find that prepayment - it may have been removed', 'error');
+            renderPrepayModal(loanId);
+            return;
+        }
+        loan.prepayments[target.i] = { date, amount };
+    } else {
+        loan.prepayments.push({ date, amount });
+    }
+
+    syncAutoLoanOutstanding();
+    regenerateLoanInstances(loanId);
+    saveState();
+    prepayModalEditIdx = null;
+    renderAll();
+    renderPrepayModal(loanId);
+    showToast(wasEdit ? 'Prepayment updated!' : 'Prepayment added!', 'success');
+}
+
+function deleteLoanPrepaymentModal(loanId, sortedIdx) {
+    const loan = state.loans.find(l => l.id === loanId);
+    if (!loan || !loan.prepayments) return;
+    const sorted = loan.prepayments.map((p, i) => ({ p, i })).sort((a, b) => parseDate(a.p.date) - parseDate(b.p.date));
+    const target = sorted[sortedIdx];
+    if (!target) return;
+    loan.prepayments.splice(target.i, 1);
+    syncAutoLoanOutstanding();
+    regenerateLoanInstances(loanId);
+    saveState();
+    if (prepayModalEditIdx === sortedIdx) prepayModalEditIdx = null;
+    else if (prepayModalEditIdx !== null && sortedIdx < prepayModalEditIdx) prepayModalEditIdx -= 1;
+    renderAll();
+    renderPrepayModal(loanId);
     showToast('Prepayment removed', 'success');
 }
 
@@ -3609,10 +3759,8 @@ function openModal(type, id) {
     } else if (type === 'prepay') {
         const loan = state.loans.find(l => l.id === id);
         if (!loan) { closeModal(); return; }
-        title.textContent = 'Prepay - ' + loan.name;
-        content.innerHTML = '<div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px; padding:12px; background:rgba(16,185,129,0.08); border-radius:10px;">Current Outstanding: <strong style="color:var(--text);">' + fmt(loan.outstanding) + '</strong> at ' + loan.rate + '% p.a. &middot; A lump-sum prepayment reduces the balance so the loan pays off sooner (tenure shortens, EMI stays the same).</div>' +
-            '<div class="form-row"><div class="form-group"><label>Date</label><input type="date" id="prepayDate_' + loan.id + '" value="' + fmtDateStr(new Date()) + '"></div><div class="form-group"><label>Amount (Rs.)</label><input type="number" id="prepayAmount_' + loan.id + '" placeholder="e.g. 100000"></div></div>' +
-            '<button class="btn btn-primary" style="width:100%;" onclick="addLoanPrepayment(\'' + loan.id + '\')"><i class="fas fa-bolt"></i> Add Prepayment</button>';
+        prepayModalEditIdx = null;
+        renderPrepayModal(id);
     } else if (type === 'goal') {
         const item = id ? state.goals.find(g => g.id === id) : null;
         title.textContent = id ? 'Edit Goal' : 'Add Goal';
@@ -3974,6 +4122,182 @@ let editingRecurType = null;
 
 function fmtDateStr(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// ===== Custom professional date picker =====
+// Renders `<div class="dp-input-wrap"><input class="dp-input" ...></div>` for a given field id/value
+// via dpFieldHtml(), then a click wires up a floating calendar popup - used in place of the native
+// <input type="date"> so users get a real calendar UI (with fast month/year jump) for picking dates,
+// including far-future ones, instead of the OS/browser's native picker.
+const DP_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DP_MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DP_WEEKDAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+let dpState = null; // { inputId, viewYear, viewMonth, selectedISO, mode: 'days'|'months' }
+let dpPopupEl = null;
+
+function dpFieldHtml(id, isoValue, placeholder) {
+    const display = isoValue ? parseDate(isoValue).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+    return '<div class="dp-input-wrap"><input type="text" class="config-input dp-input" id="' + id + '" readonly data-iso="' + (isoValue || '') + '" value="' + display + '" placeholder="' + (placeholder || 'Select date') + '" onclick="dpOpen(\'' + id + '\')"><i class="fas fa-calendar-days" onclick="dpOpen(\'' + id + '\')" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none;"></i></div>';
+}
+
+function dpEnsurePopup() {
+    if (dpPopupEl) return dpPopupEl;
+    dpPopupEl = document.createElement('div');
+    dpPopupEl.className = 'dp-popup';
+    dpPopupEl.id = 'globalDatePicker';
+    document.body.appendChild(dpPopupEl);
+    dpPopupEl.addEventListener('click', (e) => e.stopPropagation());
+    document.addEventListener('click', (e) => {
+        if (e.target.closest && e.target.closest('.dp-input')) return; // the click that opens/reopens the picker
+        dpClose();
+    });
+    window.addEventListener('resize', () => { if (dpState) dpPosition(); });
+    return dpPopupEl;
+}
+
+function dpOpen(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    dpEnsurePopup();
+    const iso = input.dataset.iso || fmtDateStr(new Date());
+    const d = parseDate(iso);
+    document.querySelectorAll('.dp-input.dp-open').forEach(el => el.classList.remove('dp-open'));
+    input.classList.add('dp-open');
+    dpState = { inputId, viewYear: d.getFullYear(), viewMonth: d.getMonth(), selectedISO: input.dataset.iso || '', mode: 'days' };
+    dpRender();
+    dpPopupEl.classList.add('dp-visible');
+    dpPosition();
+}
+
+function dpPosition() {
+    const input = document.getElementById(dpState.inputId);
+    if (!input || !dpPopupEl) return;
+    const r = input.getBoundingClientRect();
+    const popW = 300, popH = dpPopupEl.offsetHeight || 340;
+    let top = r.bottom + 6;
+    let left = r.left;
+    if (top + popH > window.innerHeight) top = Math.max(8, r.top - popH - 6);
+    if (left + popW > window.innerWidth) left = Math.max(8, window.innerWidth - popW - 8);
+    dpPopupEl.style.top = top + 'px';
+    dpPopupEl.style.left = left + 'px';
+}
+
+function dpClose() {
+    if (!dpState) return;
+    const input = document.getElementById(dpState.inputId);
+    if (input) input.classList.remove('dp-open');
+    dpPopupEl.classList.remove('dp-visible');
+    dpState = null;
+}
+
+function dpRender() {
+    if (!dpState || !dpPopupEl) return;
+    dpPopupEl.innerHTML = dpState.mode === 'months' ? dpRenderYearView() : dpRenderDayView();
+}
+
+function dpRenderDayView() {
+    const { viewYear, viewMonth, selectedISO } = dpState;
+    const todayISO = fmtDateStr(new Date());
+    const firstOfMonth = new Date(viewYear, viewMonth, 1);
+    const startOffset = firstOfMonth.getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
+
+    let cells = '';
+    for (let i = 0; i < startOffset; i++) {
+        const day = daysInPrevMonth - startOffset + 1 + i;
+        cells += '<button type="button" class="dp-day dp-muted" tabindex="-1" disabled>' + day + '</button>';
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+        const iso = viewYear + '-' + String(viewMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        let cls = 'dp-day';
+        if (iso === todayISO) cls += ' dp-today';
+        if (iso === selectedISO) cls += ' dp-selected';
+        cells += '<button type="button" class="' + cls + '" onclick="dpSelectDay(' + day + ')">' + day + '</button>';
+    }
+    const totalCells = startOffset + daysInMonth;
+    const trailing = (7 - (totalCells % 7)) % 7;
+    for (let day = 1; day <= trailing; day++) {
+        cells += '<button type="button" class="dp-day dp-muted" tabindex="-1" disabled>' + day + '</button>';
+    }
+
+    return '<div class="dp-head">' +
+        '<button type="button" class="dp-nav-btn" onclick="dpShiftMonth(-1)" title="Previous month"><i class="fas fa-chevron-left"></i></button>' +
+        '<button type="button" class="dp-title-btn" onclick="dpToggleYearView()">' + DP_MONTHS[viewMonth] + ' ' + viewYear + '</button>' +
+        '<button type="button" class="dp-nav-btn" onclick="dpShiftMonth(1)" title="Next month"><i class="fas fa-chevron-right"></i></button>' +
+        '</div>' +
+        '<div class="dp-weekdays">' + DP_WEEKDAYS.map(w => '<span>' + w + '</span>').join('') + '</div>' +
+        '<div class="dp-days">' + cells + '</div>' +
+        '<div class="dp-footer">' +
+        '<button type="button" onclick="dpGoToday()"><i class="fas fa-calendar-day"></i> Today</button>' +
+        '<button type="button" onclick="dpClose()"><i class="fas fa-xmark"></i> Close</button>' +
+        '</div>';
+}
+
+function dpRenderYearView() {
+    const { viewYear, viewMonth } = dpState;
+    return '<div class="dp-yearview-head">' +
+        '<button type="button" class="dp-nav-btn" onclick="dpShiftYear(-1)" title="Previous year"><i class="fas fa-chevron-left"></i></button>' +
+        '<input type="number" id="dpYearInput" value="' + viewYear + '" onchange="dpSetYear(this.value)">' +
+        '<button type="button" class="dp-nav-btn" onclick="dpShiftYear(1)" title="Next year"><i class="fas fa-chevron-right"></i></button>' +
+        '</div>' +
+        '<div class="dp-months-grid">' + DP_MONTHS_SHORT.map((m, i) => '<button type="button" class="dp-month-cell' + (i === viewMonth ? ' dp-selected' : '') + '" onclick="dpSelectMonth(' + i + ')">' + m + '</button>').join('') + '</div>' +
+        '<div class="dp-footer"><button type="button" onclick="dpState.mode=\'days\'; dpRender();"><i class="fas fa-arrow-left"></i> Back to calendar</button></div>';
+}
+
+function dpShiftMonth(delta) {
+    dpState.viewMonth += delta;
+    if (dpState.viewMonth < 0) { dpState.viewMonth = 11; dpState.viewYear--; }
+    else if (dpState.viewMonth > 11) { dpState.viewMonth = 0; dpState.viewYear++; }
+    dpRender();
+}
+
+function dpShiftYear(delta) {
+    dpState.viewYear += delta;
+    dpRender();
+}
+
+function dpSetYear(val) {
+    const y = parseInt(val);
+    if (!isNaN(y) && y > 1900 && y < 2400) dpState.viewYear = y;
+    dpRender();
+}
+
+function dpToggleYearView() {
+    dpState.mode = 'months';
+    dpRender();
+}
+
+function dpSelectMonth(m) {
+    dpState.viewMonth = m;
+    dpState.mode = 'days';
+    dpRender();
+}
+
+function dpGoToday() {
+    const t = new Date();
+    dpState.viewYear = t.getFullYear();
+    dpState.viewMonth = t.getMonth();
+    dpState.mode = 'days';
+    dpRender();
+}
+
+function dpSelectDay(day) {
+    const iso = dpState.viewYear + '-' + String(dpState.viewMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    const input = document.getElementById(dpState.inputId);
+    if (input) {
+        input.dataset.iso = iso;
+        input.value = parseDate(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    dpClose();
+}
+
+// Reads the ISO date (YYYY-MM-DD) out of a dp-input field - use this instead of `.value` wherever
+// a date picker built with dpFieldHtml() is read.
+function dpValue(inputId) {
+    const input = document.getElementById(inputId);
+    return input ? (input.dataset.iso || '') : '';
 }
 
 function advanceByFrequency(d, frequency) {
