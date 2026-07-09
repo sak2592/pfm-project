@@ -366,9 +366,6 @@
                 <button class="btn btn-primary" onclick="openModal('transaction')">
                     <i class="fas fa-plus"></i> Add Transaction
                 </button>
-                <button class="btn btn-secondary" onclick="syncNow()">
-                    <i class="fas fa-rotate"></i> Sync Now
-                </button>
             </div>
         </div>
 
@@ -386,11 +383,15 @@
                 <div style="display:flex; align-items:flex-end; gap:10px;">
                     <button class="btn btn-primary" onclick="saveConfig()" style="margin-bottom:10px;"><i class="fas fa-save"></i> Save</button>
                     <button class="btn btn-success" onclick="testConnection()" style="margin-bottom:10px;"><i class="fas fa-plug"></i> Test</button>
+                    <button class="btn btn-secondary" onclick="syncNow()" style="margin-bottom:10px;"><i class="fas fa-rotate"></i> Sync Now</button>
                 </div>
             </div>
             <div style="font-size:0.8rem; color:var(--text-muted); margin-top:8px;">
                 <i class="fas fa-circle-info"></i> Paste your deployed Google Apps Script Web App URL here. 
                 <a href="#" onclick="showSetupGuide(); return false;" style="color:var(--primary);">Need help setting up?</a>
+            </div>
+            <div style="font-size:0.8rem; color:var(--warning, #b45309); margin-top:6px;">
+                <i class="fas fa-triangle-exclamation"></i> "Sync Now" pushes what's currently loaded in <em>this browser</em> up to your Google Sheet, overwriting whatever is there. It normally happens automatically after every change — you only need this button to force a manual push (e.g. after reconnecting).
             </div>
         </div>
 
@@ -1313,62 +1314,22 @@ const DEFAULT_CATEGORY_CONFIG = [
     { id: 'cc_31', type: 'Investment', name: 'Stocks', subcategories: ['Equity', 'ETF'] }
 ];
 
-const DEFAULT_LOANS = [
-    { id: 'loan_1', name: 'Home Loan', lender: 'HDFC Bank', principal: 7500000, outstanding: 6260126, rate: 8.5, tenure: 240, emi: 65087, startDate: '2020-01-01', type: 'Mortgage', autoOutstanding: true, prepayments: [] },
-    { id: 'loan_2', name: 'Laptop EMI', lender: 'Bajaj Finance', principal: 120000, outstanding: 45000, rate: 0, tenure: 15, emi: 8000, startDate: '2024-01-01', type: 'Consumer', autoOutstanding: true, prepayments: [] },
-    { id: 'loan_3', name: 'Phone EMI', lender: 'HDFC Bank', principal: 80000, outstanding: 20000, rate: 0, tenure: 15, emi: 5333, startDate: '2024-06-01', type: 'Consumer', autoOutstanding: true, prepayments: [] }
-];
+// NOTE: These used to ship with hardcoded 2024 sample data (fake loans, goals, assets,
+// transactions, recurring items). That demo data has been removed so a fresh browser/profile
+// (or "Reset All Data") never shows fabricated numbers or risks getting pushed to Google
+// Sheets by mistake. New users now start completely blank and add their own data.
+const DEFAULT_LOANS = [];
 
-const DEFAULT_GOALS = [
-    { id: 'goal_1', name: 'Emergency Fund', icon: 'fa-shield-halved', target: 600000, saved: 0, monthly: 5000, targetDate: '2025-01', priority: 'Critical', description: 'Safety Net - 6 Months Expenses' },
-    { id: 'goal_2', name: 'Europe Vacation', icon: 'fa-plane', target: 300000, saved: 195000, monthly: 8000, targetDate: '2025-06', priority: 'Medium', description: 'Family vacation to Europe' },
-    { id: 'goal_3', name: 'Child Education', icon: 'fa-graduation-cap', target: 2000000, saved: 350000, monthly: 15000, targetDate: '2030-06', priority: 'High', description: 'Higher education fund' },
-    { id: 'goal_4', name: 'House Renovation', icon: 'fa-house-chimney', target: 500000, saved: 80000, monthly: 12000, targetDate: '2027-01', priority: 'Medium', description: 'Kitchen + Living Room' },
-    { id: 'goal_5', name: 'Car Upgrade', icon: 'fa-car', target: 800000, saved: 120000, monthly: 10000, targetDate: '2028-01', priority: 'Low', description: 'Upgrade to SUV' },
-    { id: 'goal_6', name: 'Retirement Corpus', icon: 'fa-umbrella-beach', target: 20000000, saved: 920000, monthly: 25000, targetDate: '2045-04', priority: 'Critical', description: 'Target corpus at age 60' }
-];
+const DEFAULT_GOALS = [];
 
-const DEFAULT_ASSETS = [
-    { name: 'Primary Home', category: 'Real Estate', purchaseValue: 7500000, currentValue: 9500000, liquid: false },
-    { name: 'Mutual Funds', category: 'Equity', purchaseValue: 120000, currentValue: 145000, liquid: true },
-    { name: 'PPF Account', category: 'Debt', purchaseValue: 50000, currentValue: 52000, liquid: false },
-    { name: 'Gold (Digital)', category: 'Commodity', purchaseValue: 30000, currentValue: 33000, liquid: true },
-    { name: 'Stocks', category: 'Equity', purchaseValue: 80000, currentValue: 92000, liquid: true },
-    { name: 'NPS', category: 'Retirement', purchaseValue: 60000, currentValue: 63000, liquid: false },
-    { name: 'FD/RD', category: 'Debt', purchaseValue: 100000, currentValue: 107000, liquid: true },
-    { name: 'Savings Account', category: 'Cash', purchaseValue: 280000, currentValue: 280000, liquid: true },
-    { name: 'Cash in Hand', category: 'Cash', purchaseValue: 15000, currentValue: 15000, liquid: true }
-];
+const DEFAULT_ASSETS = [];
 
-const DEFAULT_TRANSACTIONS = [
-    { id: 'TXN00001', date: '2024-01-01', type: 'Income', category: 'Salary', subcategory: 'Monthly Salary', classification: 'Income', amount: 85000, payment: 'Bank Transfer', bank: 'HDFC Savings', member: 'Self', vendor: 'Employer', notes: 'January Salary' },
-    { id: 'TXN00003', date: '2024-01-05', type: 'Expense', category: 'Groceries', subcategory: 'Vegetables', classification: 'Need', amount: 2800, payment: 'UPI', bank: 'HDFC Savings', member: 'Self', vendor: 'Big Basket', notes: 'Weekly groceries' },
-    { id: 'TXN00004', date: '2024-01-08', type: 'Expense', category: 'Fuel', subcategory: 'Petrol', classification: 'Need', amount: 3200, payment: 'UPI', bank: 'HDFC Savings', member: 'Self', vendor: 'Indian Oil', notes: 'Monthly fuel' },
-    { id: 'TXN00005', date: '2024-01-10', type: 'Investment', category: 'Mutual Fund', subcategory: 'ELSS', classification: 'Investment', amount: 10000, payment: 'Auto Debit', bank: 'HDFC Savings', member: 'Self', vendor: 'Groww', notes: 'SIP January' },
-    { id: 'TXN00006', date: '2024-01-12', type: 'Expense', category: 'Restaurants', subcategory: 'Dine Out', classification: 'Want', amount: 1800, payment: 'Credit Card', bank: 'HDFC Savings', member: 'Self', vendor: 'Swiggy', notes: 'Family dinner' },
-    { id: 'TXN00007', date: '2024-01-15', type: 'Expense', category: 'Electricity', subcategory: 'Monthly Bill', classification: 'Need', amount: 2200, payment: 'Net Banking', bank: 'HDFC Savings', member: 'Self', vendor: 'BESCOM', notes: 'Jan electricity' },
-    { id: 'TXN00008', date: '2024-01-18', type: 'Investment', category: 'PPF', subcategory: 'Annual Deposit', classification: 'Investment', amount: 12500, payment: 'Net Banking', bank: 'HDFC Savings', member: 'Self', vendor: 'Post Office', notes: 'PPF contribution' },
-    { id: 'TXN00009', date: '2024-01-20', type: 'Expense', category: 'School Fees', subcategory: 'Tuition', classification: 'Need', amount: 8500, payment: 'Net Banking', bank: 'HDFC Savings', member: 'Kids', vendor: 'DPS School', notes: 'Monthly fees' },
-    { id: 'TXN00010', date: '2024-01-22', type: 'Expense', category: 'Medical', subcategory: 'Medicines', classification: 'Need', amount: 1500, payment: 'UPI', bank: 'HDFC Savings', member: 'Family', vendor: 'Apollo Pharmacy', notes: 'Monthly medicines' },
-    { id: 'TXN00011', date: '2024-01-25', type: 'Expense', category: 'Shopping', subcategory: 'Clothing', classification: 'Want', amount: 4500, payment: 'Credit Card', bank: 'HDFC Savings', member: 'Self', vendor: 'Myntra', notes: 'Casual wear' },
-    { id: 'TXN00012', date: '2024-01-28', type: 'Expense', category: 'Entertainment', subcategory: 'OTT', classification: 'Want', amount: 1200, payment: 'Credit Card', bank: 'HDFC Savings', member: 'Self', vendor: 'Netflix/Prime', notes: 'Subscriptions' },
-    { id: 'TXN00013', date: '2024-02-01', type: 'Income', category: 'Salary', subcategory: 'Monthly Salary', classification: 'Income', amount: 85000, payment: 'Bank Transfer', bank: 'HDFC Savings', member: 'Self', vendor: 'Employer', notes: 'February Salary' },
-    { id: 'TXN00014', date: '2024-02-05', type: 'Expense', category: 'Groceries', subcategory: 'Monthly', classification: 'Need', amount: 5500, payment: 'UPI', bank: 'HDFC Savings', member: 'Family', vendor: 'Reliance Fresh', notes: 'Monthly groceries' },
-    { id: 'TXN00015', date: '2024-02-10', type: 'Investment', category: 'Gold', subcategory: 'Digital Gold', classification: 'Investment', amount: 5000, payment: 'UPI', bank: 'HDFC Savings', member: 'Self', vendor: 'Groww', notes: 'Gold investment' },
-    { id: 'TXN00016', date: '2024-03-01', type: 'Income', category: 'Salary', subcategory: 'Monthly Salary', classification: 'Income', amount: 85000, payment: 'Bank Transfer', bank: 'HDFC Savings', member: 'Self', vendor: 'Employer', notes: 'March Salary' },
-    { id: 'TXN00017', date: '2024-03-15', type: 'Income', category: 'Bonus', subcategory: 'Annual Bonus', classification: 'Income', amount: 50000, payment: 'Bank Transfer', bank: 'HDFC Savings', member: 'Self', vendor: 'Employer', notes: 'Annual performance bonus' },
-    { id: 'TXN00018', date: '2024-04-01', type: 'Income', category: 'Salary', subcategory: 'Monthly Salary', classification: 'Income', amount: 92000, payment: 'Bank Transfer', bank: 'HDFC Savings', member: 'Self', vendor: 'Employer', notes: 'April Salary - Increment' },
-    { id: 'TXN00019', date: '2024-05-01', type: 'Income', category: 'Salary', subcategory: 'Monthly Salary', classification: 'Income', amount: 92000, payment: 'Bank Transfer', bank: 'HDFC Savings', member: 'Self', vendor: 'Employer', notes: 'May Salary' },
-    { id: 'TXN00020', date: '2024-06-01', type: 'Income', category: 'Salary', subcategory: 'Monthly Salary', classification: 'Income', amount: 92000, payment: 'Bank Transfer', bank: 'HDFC Savings', member: 'Self', vendor: 'Employer', notes: 'June Salary' }
-];
+const DEFAULT_TRANSACTIONS = [];
 
-const DEFAULT_RECURRING_ITEMS = [
-    { id: 'REC00001', type: 'Expense', category: 'House Rent', subcategory: 'Monthly Rent', classification: 'Need', amount: 18000, frequency: 'Monthly', startDate: '2024-01-01', endDate: '2025-12-01', payment: 'Auto Debit', bank: 'HDFC Savings', member: 'Self', vendor: 'Landlord', notes: 'Fixed monthly rent (2-year agreement)', escalationPct: 0, active: true },
-    { id: 'REC00002', type: 'Investment', category: 'NPS', subcategory: 'Tier 1', classification: 'Investment', amount: 5000, frequency: 'Monthly', startDate: '2024-01-01', endDate: '2026-12-01', payment: 'Auto Debit', bank: 'HDFC Savings', member: 'Self', vendor: 'NPS Trust', notes: 'Retirement SIP with 8% annual step-up', escalationPct: 8, active: true }
-];
+const DEFAULT_RECURRING_ITEMS = [];
 
 let state = {
-    salary: 92000,
+    salary: 0,
     openingSavings: 0,
     openingInvestments: 0,
     categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
@@ -1378,7 +1339,7 @@ let state = {
     goals: JSON.parse(JSON.stringify(DEFAULT_GOALS)),
     assets: JSON.parse(JSON.stringify(DEFAULT_ASSETS)),
     recurringItems: JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS)),
-    salaryHistory: [{ date: '2024-01-01', salary: 85000 }, { date: '2024-04-01', salary: 92000 }],
+    salaryHistory: [],
     // Bank accounts (e.g. HDFC, ICICI) with a starting balance from before you began tracking here.
     bankAccounts: [
         { id: 'acc_hdfc', name: 'HDFC Savings', openingBalance: 0 },
@@ -1610,6 +1571,13 @@ async function saveDataToSheets() {
 }
 
 async function syncNow() {
+    if (!CONFIG.GAS_URL) {
+        showToast('Google Sheets URL not configured. Open Connection Settings.', 'error');
+        return;
+    }
+    const txnCount = (state.transactions || []).length;
+    const confirmMsg = 'This will OVERWRITE your Google Sheet with the data currently loaded in this browser (' + txnCount + ' transaction' + (txnCount === 1 ? '' : 's') + ', ' + (state.loans || []).length + ' loan(s), ' + (state.goals || []).length + ' goal(s), ' + (state.assets || []).length + ' asset(s)).\n\nIf this browser has older or blank data, syncing now will replace the newer data in your Sheet.\n\nAre you sure you want to sync now?';
+    if (!confirm(confirmMsg)) return;
     await saveDataToSheets();
     showToast('Sync complete!', 'success');
 }
@@ -4724,8 +4692,8 @@ function resetBudgetDefaults() {
 }
 
 function resetAll() {
-    if (!confirm('WARNING: Delete ALL data?')) return;
-    state = { salary: 92000, openingSavings: 0, openingInvestments: 0, categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)), categoryConfig: JSON.parse(JSON.stringify(DEFAULT_CATEGORY_CONFIG)), transactions: JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS)), loans: JSON.parse(JSON.stringify(DEFAULT_LOANS)), goals: JSON.parse(JSON.stringify(DEFAULT_GOALS)), assets: JSON.parse(JSON.stringify(DEFAULT_ASSETS)), recurringItems: JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS)), salaryHistory: [], bankAccounts: [{ id: 'acc_hdfc', name: 'HDFC Savings', openingBalance: 0 }, { id: 'acc_icici', name: 'ICICI Savings', openingBalance: 0 }], transfers: [] };
+    if (!confirm('WARNING: Delete ALL data? This clears every transaction, loan, goal, asset and recurring item in this browser. If Google Sheets is connected, the next sync will overwrite your Sheet with this blank state too.')) return;
+    state = { salary: 0, openingSavings: 0, openingInvestments: 0, categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)), categoryConfig: JSON.parse(JSON.stringify(DEFAULT_CATEGORY_CONFIG)), transactions: JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS)), loans: JSON.parse(JSON.stringify(DEFAULT_LOANS)), goals: JSON.parse(JSON.stringify(DEFAULT_GOALS)), assets: JSON.parse(JSON.stringify(DEFAULT_ASSETS)), recurringItems: JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS)), salaryHistory: [], bankAccounts: [{ id: 'acc_hdfc', name: 'HDFC Savings', openingBalance: 0 }, { id: 'acc_icici', name: 'ICICI Savings', openingBalance: 0 }], transfers: [] };
     saveState(); renderAll(); showToast('All data reset', 'info');
 }
 
@@ -5877,7 +5845,7 @@ function showCategoryDetail(categoryName, monthFilter) {
 
     if (rows.length === 0) {
         html += '<div style="text-align:center; padding:30px 10px; color:var(--text-muted);"><i class="fas fa-receipt" style="font-size:1.8rem; margin-bottom:10px; display:block;"></i>No transactions recorded for "' + categoryName + '"' + (monthFilter ? ' in ' + monthFilter : '') + '.'
-            + (monthFilter ? '<div style="margin-top:8px; font-size:0.85rem;">Try picking a different month from the dropdown above the Budget Utilization panel - this app\'s sample data lives in 2024.</div>' : '')
+            + (monthFilter ? '<div style="margin-top:8px; font-size:0.85rem;">Try picking a different month from the dropdown above the Budget Utilization panel.</div>' : '')
             + '</div>';
     } else {
         html += '<div class="table-container"><table><thead><tr><th>Date</th><th>Subcategory</th><th>Amount</th><th>Payment</th><th>Vendor</th><th>Notes</th><th></th></tr></thead><tbody>';
