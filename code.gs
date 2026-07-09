@@ -55,6 +55,7 @@ const SHEETS = {
   categoryConfig: 'CategoriesSubcategories',
   transactions: 'Transactions',
   loans: 'Loans',
+  loanPrepayments: 'LoanPrepayments',
   goals: 'Goals',
   assets: 'Assets',
   recurringItems: 'RecurringItems',
@@ -71,6 +72,11 @@ const HEADERS = {
   categories: ['id', 'name', 'targetPct', 'priority', 'classification'],
   transactions: ['id', 'date', 'type', 'category', 'subcategory', 'classification', 'amount', 'payment', 'bank', 'member', 'vendor', 'notes', 'fundName', 'recurringId', 'loanId'],
   loans: ['id', 'name', 'lender', 'principal', 'outstanding', 'rate', 'tenure', 'emi', 'startDate', 'type', 'autoOutstanding'],
+  // Each loan's `prepayments` array (lump-sum payments logged in the Prepay popup) gets its
+  // own sheet, one row per prepayment, keyed by loanId - same flatten/regroup pattern used for
+  // CategoriesSubcategories below. Loans themselves have no column for this nested array, so
+  // without this table prepayments are silently dropped on every Sheets round-trip.
+  loanPrepayments: ['loanId', 'date', 'amount'],
   goals: ['id', 'name', 'icon', 'target', 'saved', 'monthly', 'targetDate', 'priority', 'description'],
   assets: ['name', 'category', 'purchaseValue', 'currentValue', 'liquid', 'source', 'xirr'],
   recurringItems: ['id', 'type', 'category', 'subcategory', 'classification', 'amount', 'frequency', 'startDate', 'endDate', 'payment', 'bank', 'member', 'vendor', 'notes', 'escalationPct', 'fundName', 'active'],
@@ -307,13 +313,44 @@ function readCategoryConfig_() {
 }
 
 // ==================================================================
+// LoanPrepayments (each loan's `prepayments` array, flattened)
+// ==================================================================
+// A loan looks like { id, name, ..., prepayments: [{date, amount}, ...] }. HEADERS.loans has
+// no column for that nested array, so it's stored separately here (one row per prepayment,
+// tagged with loanId) and re-attached to the right loan object on load.
+
+function writeLoanPrepayments_(loans) {
+  const rows = [];
+  (loans || []).forEach(function (loan) {
+    (loan.prepayments || []).forEach(function (p) {
+      rows.push({ loanId: loan.id, date: p.date, amount: p.amount });
+    });
+  });
+  writeTable_(SHEETS.loanPrepayments, HEADERS.loanPrepayments, rows);
+}
+
+function readLoanPrepayments_() {
+  const rows = readTable_(SHEETS.loanPrepayments, HEADERS.loanPrepayments);
+  const byLoanId = {};
+  rows.forEach(function (r) {
+    if (!byLoanId[r.loanId]) byLoanId[r.loanId] = [];
+    byLoanId[r.loanId].push({ date: r.date, amount: r.amount });
+  });
+  return byLoanId;
+}
+
+// ==================================================================
 // Settings (current salary + last saved timestamp)
 // ==================================================================
 
 function writeSettings_(state) {
   const rows = [
     { key: 'salary', value: state.salary },
-    { key: 'lastSaved', value: new Date().toISOString() }
+    { key: 'lastSaved', value: new Date().toISOString() },
+    // Echoes back the client's own lastModified timestamp (set on every local save) so that on
+    // the next load, the client can tell whether this cloud copy is newer or older than whatever
+    // it already has locally, and avoid clobbering newer local edits with a stale cloud copy.
+    { key: 'lastModified', value: state.lastModified || Date.now() }
   ];
   writeTable_(SHEETS.settings, ['key', 'value'], rows);
 }
@@ -338,12 +375,18 @@ function doGet(e) {
 
     if (action === 'load') {
       const settings = readSettings_();
+      const prepaymentsByLoanId = readLoanPrepayments_();
+      const loans = readTable_(SHEETS.loans, HEADERS.loans);
+      loans.forEach(function (loan) {
+        loan.prepayments = prepaymentsByLoanId[loan.id] || [];
+      });
       const state = {
         salary: toNum_(settings.salary || 0),
+        lastModified: toNum_(settings.lastModified || 0),
         categories: readTable_(SHEETS.categories, HEADERS.categories),
         categoryConfig: readCategoryConfig_(),
         transactions: readTable_(SHEETS.transactions, HEADERS.transactions),
-        loans: readTable_(SHEETS.loans, HEADERS.loans),
+        loans: loans,
         goals: readTable_(SHEETS.goals, HEADERS.goals),
         assets: readTable_(SHEETS.assets, HEADERS.assets),
         recurringItems: readTable_(SHEETS.recurringItems, HEADERS.recurringItems),
@@ -391,6 +434,7 @@ function doPost(e) {
         writeCategoryConfig_(state.categoryConfig);
         upsertTable_(SHEETS.transactions, HEADERS.transactions, state.transactions);
         upsertTable_(SHEETS.loans, HEADERS.loans, state.loans);
+        writeLoanPrepayments_(state.loans);
         upsertTable_(SHEETS.goals, HEADERS.goals, state.goals);
         writeTable_(SHEETS.assets, HEADERS.assets, state.assets);
         upsertTable_(SHEETS.recurringItems, HEADERS.recurringItems, state.recurringItems);
