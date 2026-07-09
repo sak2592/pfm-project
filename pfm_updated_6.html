@@ -102,7 +102,8 @@
 
         /* Compact "nodal" cards for the Investment Tracker stat row - smaller footprint than
            .dash-card, with a mini animated progress ring + count-up numbers driven from JS. */
-        .invest-node-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 4px; }
+        .invest-node-grid { display: grid; grid-template-columns: repeat(auto-fill, 210px); justify-content: start; gap: 12px; margin-bottom: 4px; }
+        @media (max-width: 460px) { .invest-node-grid { grid-template-columns: 1fr; } }
         .invest-node { background: var(--card-bg); border: 1.5px solid var(--node-border, var(--border)); border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; position: relative; overflow: hidden; }
         .invest-node::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: var(--node-color, var(--primary)); opacity: 0.85; }
         .invest-node:hover { transform: translateY(-3px); box-shadow: 0 8px 20px -8px var(--node-color, var(--primary)); border-color: var(--node-color, var(--primary)); }
@@ -115,7 +116,7 @@
         .invest-node-ring .ring-icon { fill: var(--node-color, var(--primary)); font-size: 11px; }
         .invest-node-body { min-width: 0; flex: 1; }
         .invest-node-label { font-size: 0.66rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-        .invest-node-value { font-size: 1.05rem; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .invest-node-value { font-size: 1.05rem; font-weight: 700; line-height: 1.2; white-space: normal; overflow: visible; text-overflow: clip; word-break: break-word; }
         .invest-node-sub { font-size: 0.66rem; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .invest-node-icon-badge { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0; background: var(--node-bg, rgba(99,102,241,0.15)); color: var(--node-color, var(--primary)); }
         .panel { background: var(--card-bg); border-radius: var(--radius); padding: 24px; border: 1px solid var(--border); margin-bottom: 24px; }
@@ -288,9 +289,9 @@
         .goal-nodal-stat-label { font-size: 0.66rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
         .goal-nodal-footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:0.76rem; color: var(--text-muted); }
         .goal-nodal-chart { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); height: 110px; position: relative; }
-        .goals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 18px; align-items: start; }
+        .goals-grid { display: grid; grid-template-columns: repeat(auto-fill, 420px); justify-content: start; gap: 18px; align-items: start; }
         .goals-grid .goal-nodal { margin-bottom: 0; }
-        @media (max-width: 900px) { .goals-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 460px) { .goals-grid { grid-template-columns: 1fr; } }
         .toggle-pill-group { display: flex; background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; }
         .btn-toggle-pill { padding: 6px 14px; border: none; background: transparent; color: var(--text-muted); font-family: inherit; font-weight: 700; font-size: 0.76rem; border-radius: 8px; cursor: pointer; transition: all 0.25s ease; }
         .btn-toggle-pill.active { background: linear-gradient(135deg, var(--primary), var(--purple)); color: white; box-shadow: 0 2px 10px rgba(99,102,241,0.35); }
@@ -5452,7 +5453,7 @@ function renderYearlyOverview(selectId, containerId) {
         '</tbody></table></div></div>' +
         '<div class="panel" style="margin-top: 20px;"><div class="panel-header"><div class="panel-title"><i class="fas fa-chart-pie"></i> Top Expense Categories - ' + selectedYear + ' <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">(click a category to see its transactions)</span></div></div>' +
         (topCategories.length > 0 ?
-            '<div class="invest-node-grid" style="margin-top:16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));">' +
+            '<div class="invest-node-grid" style="margin-top:16px;">' +
             topCategories.map(([cat, amt], idx) => {
                 const pct = yearExpenses > 0 ? (amt / yearExpenses) * 100 : 0;
                 const nodePalette = [
