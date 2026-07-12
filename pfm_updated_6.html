@@ -2129,6 +2129,15 @@ function getMonthYear(dateStr) {
     return d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
 }
 
+// Locale-proof replacement for `getMonthYear(t.date) === 'Jun 2026'`-style checks: compares the
+// actual month/year numbers instead of two independently-formatted strings, so it can never break
+// due to a browser/locale rendering "Jun 2026" slightly differently (extra comma, spacing, etc.).
+function isInMonthYear(dateStr, monthAbbr, year) {
+    const d = parseDate(dateStr);
+    const monthIdx = MONTH_ABBRS.indexOf(monthAbbr);
+    return monthIdx !== -1 && d.getMonth() === monthIdx && d.getFullYear() === parseInt(year, 10);
+}
+
 // Plain 3-letter month name only (no year) — used for every Year/Month filter pair so the Month
 // dropdown always just shows "Jan".."Dec"; which year those months belong to is decided entirely
 // by the separate Year dropdown.
@@ -2296,18 +2305,33 @@ function populateFilters() {
     const now = new Date();
     const yearSelect = document.getElementById('txFilterYear');
     if (yearSelect) {
+        // Only default to "current year" the very first time this runs (empty select).
+        // On every later call, an already-populated select means the value is a real user
+        // choice - including "" for "All Years" - and must be preserved, not reset.
+        const yearAlreadyPopulated = yearSelect.options.length > 1;
         const prevVal = yearSelect.value;
         const years = [...new Set([...state.transactions.map(t => parseDate(t.date).getFullYear()), now.getFullYear()])].sort((a, b) => a - b);
         yearSelect.innerHTML = '<option value="">All Years</option>' + years.map(y => '<option value="' + y + '">' + y + '</option>').join('');
-        yearSelect.value = (prevVal && years.map(String).includes(prevVal)) ? prevVal : String(now.getFullYear());
+        if (yearAlreadyPopulated) {
+            yearSelect.value = (prevVal === '' || years.map(String).includes(prevVal)) ? prevVal : String(now.getFullYear());
+        } else {
+            yearSelect.value = String(now.getFullYear());
+        }
     }
     const monthSelect = document.getElementById('txFilterMonth');
     if (monthSelect) {
+        // Same fix here: "" (All Months) is a legitimate saved choice once the dropdown has
+        // already been populated once, not a signal to fall back to the current month.
+        const monthAlreadyPopulated = monthSelect.options.length > 1;
         const prevVal = monthSelect.value;
         // Month dropdown always shows the plain month names "Jan".."Dec" — it never carries a
         // year itself; the Year dropdown decides which year's transactions are matched.
         monthSelect.innerHTML = '<option value="">All Months</option>' + MONTH_ABBRS.map(m => '<option value="' + m + '">' + m + '</option>').join('');
-        monthSelect.value = (prevVal && MONTH_ABBRS.includes(prevVal)) ? prevVal : MONTH_ABBRS[now.getMonth()];
+        if (monthAlreadyPopulated) {
+            monthSelect.value = (prevVal === '' || MONTH_ABBRS.includes(prevVal)) ? prevVal : MONTH_ABBRS[now.getMonth()];
+        } else {
+            monthSelect.value = MONTH_ABBRS[now.getMonth()];
+        }
         autosizeSelect(monthSelect);
     }
     populateOverviewSelectors();
@@ -5523,14 +5547,19 @@ function renderExpense() {
 
     // The Fixed Expense / Loan cards reflect whichever month is currently in view (the
     // selected Month filter, or today's month when nothing is selected) so the cards and the
-    // History drill-down below always agree on "that month".
-    const fixedScopeMonth = filterMonth || new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-    const fixedScopeIncome = state.transactions.filter(t => t.type === 'Income' && getMonthYear(t.date) === fixedScopeMonth).reduce((s, t) => s + t.amount, 0) || state.salary;
+    // History drill-down below always agree on "that month". Matching is done by actual
+    // month/year numbers (isInMonthYear), not by comparing formatted date strings, so it can't
+    // silently break if a browser renders "Jun 2026" slightly differently than expected.
+    const scopeMonthAbbr = filterMonth || MONTH_ABBRS[now.getMonth()];
+    const scopeYear = filterYear ? parseInt(filterYear, 10) : now.getFullYear();
+    const fixedScopeMonth = scopeMonthAbbr + ' ' + scopeYear;
+    const inFixedScope = (dateStr) => isInMonthYear(dateStr, scopeMonthAbbr, scopeYear);
+    const fixedScopeIncome = state.transactions.filter(t => t.type === 'Income' && inFixedScope(t.date)).reduce((s, t) => s + t.amount, 0) || state.salary;
 
     // Loan - each loan's EMI is now auto-mapped 1:1 to its own Expense transaction (t.loanId,
     // date = that EMI's due date, amount = the loan's EMI), so this is a straight sum of that
     // month's loan-linked transactions rather than a separate estimate.
-    const loanMonthTx = state.transactions.filter(t => t.type === 'Expense' && t.loanId && getMonthYear(t.date) === fixedScopeMonth);
+    const loanMonthTx = state.transactions.filter(t => t.type === 'Expense' && t.loanId && inFixedScope(t.date));
     const totalLoanPaid = loanMonthTx.reduce((s, t) => s + t.amount, 0);
     const loanPct = fixedScopeIncome > 0 ? (totalLoanPaid / fixedScopeIncome) * 100 : 0;
     const loansPaidCount = new Set(loanMonthTx.map(t => t.loanId)).size;
@@ -5547,7 +5576,7 @@ function renderExpense() {
     el('expenseTotalSub', 'All categories (Fixed + one-off + Loan EMIs), incl. ' + fmt(totalLoanPaid) + ' loan');
 
     // Savings = that month's Income minus Total Expenses (combined, incl. loan) minus Investments.
-    const savingsScopeInvestment = getTotalInvestment(fixedScopeMonth);
+    const savingsScopeInvestment = state.transactions.filter(t => t.type === 'Investment' && inFixedScope(t.date)).reduce((s, t) => s + t.amount, 0);
     const savingsTotal = fixedScopeIncome - allCatTotal - savingsScopeInvestment;
     const savingsPct = fixedScopeIncome > 0 ? (savingsTotal / fixedScopeIncome) * 100 : 0;
     el('expenseSavingsTotal', fmt(savingsTotal));
@@ -5556,9 +5585,13 @@ function renderExpense() {
     const savingsValueEl = document.getElementById('expenseSavingsTotal');
     if (savingsValueEl) savingsValueEl.style.color = savingsTotal < 0 ? 'var(--danger)' : '';
 
-    const fixedExpMonthTx = state.transactions.filter(t => t.type === 'Expense' && t.recurringId && getMonthYear(t.date) === fixedScopeMonth);
+    const fixedExpMonthTx = state.transactions.filter(t => t.type === 'Expense' && t.recurringId && inFixedScope(t.date));
     const fixedExpMonthTotal = fixedExpMonthTx.reduce((s, t) => s + t.amount, 0);
-    const fixedExpCount = (state.recurringItems || []).filter(r => r.type === 'Expense').length;
+    // Count only rules that actually produced a transaction in THIS month, not every Fixed
+    // Expense rule ever created - otherwise the caption can say "2 fixed items" next to a
+    // Rs.0 total when neither rule's date range actually covers this month, which reads as
+    // a bug even though the zero itself is correct.
+    const fixedExpCount = new Set(fixedExpMonthTx.map(t => t.recurringId)).size;
     const fixedExpPct = fixedScopeIncome > 0 ? (fixedExpMonthTotal / fixedScopeIncome) * 100 : 0;
     el('expenseFixedTotal', fmt(fixedExpMonthTotal));
     el('expenseFixedPct', fixedExpPct.toFixed(1) + '% of income');
@@ -5916,10 +5949,16 @@ function renderInvestment() {
 
     // The Fixed Investment card reflects whichever month is currently in view (the selected Month
     // filter, or today's month when nothing is selected), same convention as the Expense tab.
-    const fixedScopeMonth = filterMonth || new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-    const fixedInvMonthTx = state.transactions.filter(t => t.type === 'Investment' && t.recurringId && getMonthYear(t.date) === fixedScopeMonth);
+    // Matching is done by actual month/year numbers (isInMonthYear), not by comparing formatted
+    // date strings, so it can't silently break on a locale/browser date-formatting difference.
+    const scopeMonthAbbr = filterMonth || MONTH_ABBRS[now.getMonth()];
+    const scopeYear = filterYear ? parseInt(filterYear, 10) : now.getFullYear();
+    const fixedScopeMonth = scopeMonthAbbr + ' ' + scopeYear;
+    const fixedInvMonthTx = state.transactions.filter(t => t.type === 'Investment' && t.recurringId && isInMonthYear(t.date, scopeMonthAbbr, scopeYear));
     const fixedInvMonthTotal = fixedInvMonthTx.reduce((s, t) => s + t.amount, 0);
-    const fixedInvCount = (state.recurringItems || []).filter(r => r.type === 'Investment').length;
+    // Count only rules that actually produced a transaction in THIS month - same fix as the
+    // Expense tab's Fixed Expense card, so the caption never contradicts a Rs.0 total.
+    const fixedInvCount = new Set(fixedInvMonthTx.map(t => t.recurringId)).size;
     const fixedInvPct = state.salary > 0 ? (fixedInvMonthTotal / state.salary) * 100 : 0;
 
     renderInvestmentStatNodes({
