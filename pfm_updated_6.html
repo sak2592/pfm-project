@@ -1738,6 +1738,12 @@ async function testConnection() {
     }
 }
 
+// Last Sheets `lastModified` timestamp this tab actually knows about (from its own load or its
+// own last successful save) - NOT the same as state.lastModified, which is bumped to "now" on
+// every local edit. Used by the save-side staleness guard below to detect "someone/something
+// else saved to Sheets since this tab last checked in", without being confused by our own edits.
+let lastSyncedRemoteTime = 0;
+
 async function apiCall(action, payload) {
     if (!CONFIG.GAS_URL) {
         showToast('Google Sheets URL not configured. Open Connection Settings.', 'error');
@@ -1778,8 +1784,31 @@ async function saveDataToSheets() {
     if (!CONFIG.GAS_URL) return;
     setSyncStatus('syncing', 'Syncing to Sheets...');
     try {
+        // Save-side race guard: the load-side guard above only protects a fresh page load. It does
+        // nothing for a tab that's been open for a while - e.g. left open on your phone since the
+        // morning - which still holds an OLDER in-memory `state`. Any edit in that stale tab
+        // (toggling a Fixed Expense back on, adding a transaction, anything) calls saveState(),
+        // which used to unconditionally POST that whole stale `state` and overwrite the ENTIRE
+        // sheet - silently reverting a Fixed Expense that was resumed elsewhere back to "Paused",
+        // or wiping out a mutual fund holding that was added from another device/tab in the
+        // meantime. This is almost certainly what "my fixed expense randomly gets paused" and "my
+        // mutual fund name gets eliminated" actually are. Before overwriting, quickly check whether
+        // Sheets has moved on since this tab last actually knew its state, and refuse to clobber if so.
+        try {
+            const check = await fetch(CONFIG.GAS_URL + '?action=load');
+            const checkData = await check.json();
+            if (checkData && checkData.status === 'ok' && checkData.lastModified && checkData.lastModified > lastSyncedRemoteTime) {
+                setSyncStatus('error', 'Newer data on Sheets');
+                showToast('Google Sheets has newer data than this tab knows about (likely edited from another device/tab). To avoid overwriting it, please reload this page to pick up those changes before saving again.', 'error');
+                return;
+            }
+        } catch (e) {
+            // If the staleness check itself can't be reached, fall through and save as before -
+            // better to save (old behavior) than to block every edit whenever the network hiccups.
+        }
         const result = await apiCall('save', { state });
         if (result.status === 'ok') {
+            lastSyncedRemoteTime = state.lastModified;
             setSyncStatus('synced', 'Connected to Sheets');
         } else {
             setSyncStatus('error', 'Sync failed');
@@ -1857,6 +1886,7 @@ loadData = async function() {
                 return;
             }
             state = { ...state, ...sheetData };
+            lastSyncedRemoteTime = remoteTime;
             if (!state.categories || state.categories.length === 0) state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
             if (!state.categoryConfig || state.categoryConfig.length === 0) state.categoryConfig = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_CONFIG));
             if (!state.transactions) state.transactions = JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS));
@@ -7389,6 +7419,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     populateFilters();
     renderAll();
 });
+
+// Multi-device use (phone + laptop + a tab left open) is exactly the scenario the save-side
+// staleness guard above protects against, but that guard only *blocks* a stale overwrite - it
+// still leaves you to manually reload before you can save again. This closes the gap on the
+// other side: whenever you come back to a tab (switch back from your phone, alt-tab back to the
+// laptop), it quietly pulls in whatever changed on Sheets since this tab last checked in, so the
+// conflict rarely even has a chance to happen. Reuses the same loadData() used at startup, which
+// already refuses to accept a remote copy older than what this tab knows (see the load-side
+// staleness guard above) - so an edit made here while offline still can't be silently lost.
+let lastAutoRefreshTime = 0;
+async function autoRefreshFromSheets() {
+    if (!CONFIG.GAS_URL) return;
+    if (pendingSyncCount > 0) return; // a save is already in flight - don't fetch mid-save
+    if (document.getElementById('modal')?.classList.contains('active')) return; // don't disrupt an open form
+    const now = Date.now();
+    if (now - lastAutoRefreshTime < 15000) return; // simple cooldown - avoid refetching on every rapid tab-switch
+    lastAutoRefreshTime = now;
+    await loadData();
+    populateFilters();
+    renderAll();
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') autoRefreshFromSheets();
+});
+window.addEventListener('focus', autoRefreshFromSheets);
+
 </script>
     <script>
     // Background canvas: glowing moving radiant night sky (dark theme) or a soft
