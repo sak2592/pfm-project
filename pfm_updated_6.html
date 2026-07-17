@@ -572,18 +572,21 @@
         .login-subtitle { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; margin-bottom: 24px; line-height: 1.5; }
         .login-note { margin-top: 16px; font-size: 0.76rem; color: var(--text-muted); }
         .user-badge {
-            display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px;
-            background: var(--input-bg); border: 1px solid var(--border); font-size: 0.82rem; color: var(--text);
-            cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; gap: 6px; padding: 6px 10px 6px 6px; border-radius: 999px;
+            font-size: 0.74rem; font-weight: 700; color: var(--text); cursor: pointer; position: relative; overflow: hidden; border: 1px solid transparent;
+            background: radial-gradient(120% 200% at 100% 0%, rgba(139,92,246,0.22), transparent 60%), linear-gradient(120deg, var(--card-bg) 45%, rgba(99,102,241,0.12) 200%);
+            box-shadow: 0 6px 18px -8px rgba(99,102,241,0.55), inset 0 0 0 1px rgba(255,255,255,0.04);
         }
-        .user-badge:hover { border-color: var(--primary); }
+        .user-badge::before { content: ''; position: absolute; inset: 0; border-radius: 999px; padding: 1.3px; background: linear-gradient(115deg, var(--primary), var(--pink), var(--purple), var(--primary)); background-size: 300% 300%; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0.85; pointer-events: none; animation: alertBorderShift 6s ease-in-out infinite; }
+        .user-badge::after { content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.35), transparent); transform: skewX(-18deg); pointer-events: none; animation: alertShimmer 5.5s ease-in-out infinite; }
+        .user-badge > * { position: relative; z-index: 1; }
         .user-badge-avatar {
-            width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            background: linear-gradient(135deg, var(--primary), var(--purple)); color: #fff; font-size: 0.72rem; font-weight: 700; flex-shrink: 0;
+            width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, var(--primary), var(--purple)); color: #fff; font-size: 0.62rem; font-weight: 700; flex-shrink: 0;
             overflow: hidden;
         }
         .user-badge-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .user-badge-chevron { font-size: 0.6rem; color: var(--text-muted); margin-left: -2px; transition: transform 0.15s ease; }
+        .user-badge-chevron { font-size: 0.55rem; color: var(--text-muted); margin-left: -2px; transition: transform 0.15s ease; }
         .user-badge[aria-expanded="true"] .user-badge-chevron { transform: rotate(180deg); }
         .user-dropdown {
             position: fixed; width: 208px; background: var(--card-bg); border: 1px solid var(--border);
@@ -700,10 +703,6 @@
                 </div>
                 <button class="btn btn-primary btn-radiant" onclick="openModal('transaction')">
                     <i class="fas fa-plus"></i> <span>Add Transaction</span>
-                </button>
-                <button type="button" class="date-pill" id="salaryPillBtn" onclick="toggleSalaryModal()" title="Click to edit your base salary" aria-haspopup="true" aria-expanded="false" style="cursor:pointer; border:1px solid transparent; font-family:inherit;">
-                    <i class="fas fa-wallet"></i>
-                    <span id="salaryPillText">Set base salary</span>
                 </button>
                 <div class="date-pill" id="headerDatePill">
                     <i class="fas fa-calendar-days"></i>
@@ -1517,25 +1516,6 @@
                 <button class="btn btn-primary btn-radiant" onclick="saveConfig()"><i class="fas fa-save"></i> Save</button>
                 <button class="btn btn-success" onclick="testConnection()" title="Test Connection" aria-label="Test Connection"><i class="fas fa-plug"></i></button>
                 <button class="btn btn-secondary" onclick="syncNow()" title="Sync Now" aria-label="Sync Now"><i class="fas fa-rotate"></i></button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="salaryConfigModal" style="z-index:3100;" onclick="if(event.target===this) toggleSalaryModal();">
-        <div class="modal" style="max-width:380px;">
-            <div class="modal-header">
-                <div class="modal-title"><i class="fas fa-wallet"></i> Base Salary</div>
-                <button class="modal-close" onclick="toggleSalaryModal()">&times;</button>
-            </div>
-            <div class="form-group">
-                <label for="monthlySalary">Monthly Base Salary</label>
-                <input type="number" id="monthlySalary" placeholder="Enter salary" min="0" step="1000" style="width:100%;" onkeydown="if(event.key==='Enter'){saveSalaryAndClose();}" title="Drives Budget targets in Budget vs Actual, EMI %, Investment % etc.">
-            </div>
-            <div style="font-size:0.76rem; color:var(--text-muted); line-height:1.6; margin-top:2px;">
-                Used to calculate Budget targets, EMI %, and Investment % across the dashboard.
-            </div>
-            <div style="display:flex; align-items:center; gap:10px; margin-top:16px;">
-                <button class="btn btn-primary btn-radiant" onclick="saveSalaryAndClose()"><i class="fas fa-save"></i> Save</button>
             </div>
         </div>
     </div>
@@ -2680,8 +2660,6 @@ function renderDashboard() {
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     const salaryInputEl = document.getElementById('monthlySalary');
     if (salaryInputEl && document.activeElement !== salaryInputEl) salaryInputEl.value = state.salary > 0 ? state.salary : '';
-    const salaryPillTextEl = document.getElementById('salaryPillText');
-    if (salaryPillTextEl) salaryPillTextEl.textContent = state.salary > 0 ? fmt(state.salary) + ' salary' : 'Set base salary';
     animateCardValue('dbIncome', averageIncome, fmt);
     animateCardValue('dbSavings', totalSavingsAllTime, fmt);
     animateCardValue('dbInvestments', totalInvestmentAllTime, fmt);
@@ -3905,6 +3883,61 @@ function renderAmortizationDropdown() {
     if (Array.from(select.options).some(o => o.value === prevValue)) select.value = prevValue;
 }
 
+// Reuses the same info shown on the dashboard's Home Loan nodal card (outstanding, prepaid,
+// tenure left, still to pay, interest saved, start/payoff timeline) so a Mortgage loan gets the
+// full picture inline in its Amortization Schedule too, not just the compact Loan/Rate/EMI strip.
+function buildMortgageAmortizationDetails(loan, today, noPrepay, withPrepay, interestSaved) {
+    const status = getLoanStatus(loan, today);
+    const totalPrepaid = (loan.prepayments || []).reduce((s, p) => s + p.amount, 0);
+    const totalPayableLeft = loanRemainingPayable(loan, today);
+    const tenureLeftLabel = status.monthsRemaining + ' mo left';
+
+    const addMonthsToDate = (date, months) => { const d = new Date(date.getTime()); d.setMonth(d.getMonth() + months); return d; };
+    const fmtMonthYear = (date) => date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+    const formatMonthSpan = (months) => {
+        const yrs = Math.floor(months / 12);
+        const mo = months % 12;
+        if (yrs === 0) return mo + ' mo';
+        if (mo === 0) return yrs + ' yr' + (yrs > 1 ? 's' : '');
+        return yrs + ' yr' + (yrs > 1 ? 's' : '') + ' ' + mo + ' mo';
+    };
+
+    const start = parseDate(loan.startDate);
+    const originalEnd = addMonthsToDate(start, loan.tenure);
+    const expectedEnd = addMonthsToDate(today, status.monthsRemaining);
+    const monthsEarlier = Math.max(0, Math.round((originalEnd - expectedEnd) / (1000 * 60 * 60 * 24 * 30.44)));
+    const payoffColor = monthsEarlier > 0 ? 'var(--secondary)' : 'var(--text)';
+
+    const statsRow = '<div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:0.78rem;">' +
+        '<div><span style="color:var(--text-muted);">Prepaid</span><br><span style="font-weight:600; color:var(--secondary);">' + (totalPrepaid > 0 ? fmt(totalPrepaid) : '\u2014') + '</span></div>' +
+        '<div><span style="color:var(--text-muted);">Tenure Left</span><br><span style="font-weight:600;">' + tenureLeftLabel + '</span></div>' +
+        '<div><span style="color:var(--text-muted);">Still to Pay (incl. interest)</span><br><span style="font-weight:600; color:var(--danger);">' + fmt(totalPayableLeft) + '</span></div>' +
+        (interestSaved > 0
+            ? '<div><span style="color:var(--text-muted);">Interest Saved</span><br><span style="font-weight:600; color:var(--secondary);"><i class="fas fa-piggy-bank" style="font-size:0.7rem;"></i> ' + fmt(interestSaved) + '</span></div>'
+            : '') +
+    '</div>';
+
+    const timelineHtml = '<div style="display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:0.78rem;">' +
+        '<div><span style="color:var(--text-muted);">Started</span><br><span style="font-weight:600;">' + fmtMonthYear(start) + '</span></div>' +
+        '<i class="fas fa-arrow-right" style="color:var(--text-muted); font-size:0.7rem; padding-bottom:3px;"></i>' +
+        '<div><span style="color:var(--text-muted);">Loan-Free By</span><br><span style="font-weight:600; color:' + payoffColor + ';">' + fmtMonthYear(expectedEnd) + '</span></div>' +
+        (monthsEarlier > 0
+            ? '<span class="badge badge-success" style="font-size:0.66rem; white-space:nowrap;" title="Original payoff was ' + fmtMonthYear(originalEnd) + '"><i class="fas fa-bolt"></i> ' + formatMonthSpan(monthsEarlier) + ' earlier</span>'
+            : '<span style="font-size:0.66rem; color:var(--text-muted); white-space:nowrap;">as per original schedule (' + fmtMonthYear(originalEnd) + ')</span>') +
+    '</div>';
+
+    return '<div class="invest-node" style="--node-color:var(--primary); --node-bg:rgba(99,102,241,0.15); --node-border:rgba(99,102,241,0.45); align-items:flex-start; width:100%; margin-bottom:20px;">' +
+        '<div class="invest-node-icon-badge"><i class="fas fa-house"></i></div>' +
+        '<div class="invest-node-body" style="width:100%;">' +
+            '<div class="invest-node-label">Home Loan' + (loan.lender ? ' \u00b7 ' + loan.lender : '') + ' - Outstanding</div>' +
+            '<div class="invest-node-value">' + fmt(status.outstanding) + '</div>' +
+            '<div class="invest-node-sub">' + loan.name + '</div>' +
+            statsRow +
+            timelineHtml +
+        '</div>' +
+    '</div>';
+}
+
 function renderAmortization() {
     const loanId = document.getElementById('amortizationLoanSelect')?.value;
     const container = document.getElementById('amortizationTableContainer');
@@ -3976,7 +4009,11 @@ function renderAmortization() {
         }).join('') +
         '</tbody></table></div>';
 
-    container.innerHTML = mismatchWarning + prepaySection + tableHtml;
+    const mortgageDetailsHtml = loan.type === 'Mortgage'
+        ? buildMortgageAmortizationDetails(loan, today, noPrepay, withPrepay, interestSaved)
+        : '';
+
+    container.innerHTML = mortgageDetailsHtml + mismatchWarning + prepaySection + tableHtml;
 }
 
 function addLoanPrepayment(loanId) {
@@ -4324,27 +4361,6 @@ function updateSalary() {
     saveState();
     renderAll();
     showToast('Salary updated! All budgets recalculated.', 'success');
-}
-
-function toggleSalaryModal() {
-    const modal = document.getElementById('salaryConfigModal');
-    const pillBtn = document.getElementById('salaryPillBtn');
-    if (!modal) return;
-    const opening = !modal.classList.contains('active');
-    modal.classList.toggle('active');
-    if (pillBtn) pillBtn.setAttribute('aria-expanded', opening ? 'true' : 'false');
-    if (opening) {
-        const input = document.getElementById('monthlySalary');
-        if (input) {
-            input.value = state.salary > 0 ? state.salary : '';
-            setTimeout(() => input.focus(), 50);
-        }
-    }
-}
-
-function saveSalaryAndClose() {
-    updateSalary();
-    if (state.salary > 0) toggleSalaryModal();
 }
 
 let preselectedTxType = null;
