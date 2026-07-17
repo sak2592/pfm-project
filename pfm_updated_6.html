@@ -583,6 +583,23 @@
             overflow: hidden;
         }
         .user-badge-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .user-badge-chevron { font-size: 0.6rem; color: var(--text-muted); margin-left: -2px; transition: transform 0.15s ease; }
+        .user-badge[aria-expanded="true"] .user-badge-chevron { transform: rotate(180deg); }
+        .user-dropdown {
+            position: fixed; width: 208px; background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 10px; box-shadow: 0 12px 32px -16px rgba(0,0,0,0.5); overflow: hidden; z-index: 1000;
+        }
+        .user-dropdown.hidden { display: none; }
+        .user-dropdown-header { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+        .user-dropdown-name { font-size: 0.78rem; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; }
+        .user-dropdown-email { font-size: 0.68rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 2px 0 0; }
+        .user-dropdown-item {
+            width: 100%; text-align: left; padding: 10px 12px; font-size: 0.78rem; background: none; border: none;
+            cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text); font-family: inherit;
+        }
+        .user-dropdown-item i { width: 14px; text-align: center; }
+        .user-dropdown-item:hover { background: var(--input-bg); }
+        .user-dropdown-item-danger { color: var(--danger); }
         .google-btn-slot { display: flex; justify-content: center; min-height: 40px; margin-bottom: 4px; }
         .google-setup-hint {
             margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: var(--input-bg); border: 1px dashed var(--border);
@@ -684,9 +701,27 @@
                 <button class="btn btn-primary btn-radiant" onclick="openModal('transaction')">
                     <i class="fas fa-plus"></i> <span>Add Transaction</span>
                 </button>
+                <button type="button" class="date-pill" id="salaryPillBtn" onclick="toggleSalaryModal()" title="Click to edit your base salary" aria-haspopup="true" aria-expanded="false" style="cursor:pointer; border:1px solid transparent; font-family:inherit;">
+                    <i class="fas fa-wallet"></i>
+                    <span id="salaryPillText">Set base salary</span>
+                </button>
                 <div class="date-pill" id="headerDatePill">
                     <i class="fas fa-calendar-days"></i>
                     <span id="headerDateText"></span>
+                </div>
+                <button type="button" class="user-badge" id="userBadge" onclick="toggleUserDropdown(event)" title="Account" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-badge-avatar" id="userBadgeAvatar">G</div>
+                    <span id="userBadgeName">Guest</span>
+                    <i class="fas fa-chevron-down user-badge-chevron"></i>
+                </button>
+                <div id="userDropdown" class="user-dropdown hidden">
+                    <div class="user-dropdown-header">
+                        <p id="userDropdownName" class="user-dropdown-name">Guest</p>
+                        <p id="userDropdownEmail" class="user-dropdown-email"></p>
+                    </div>
+                    <button type="button" class="user-dropdown-item user-dropdown-item-danger" id="userDropdownLogoutBtn" onclick="logoutUser()">
+                        <i class="fas fa-right-from-bracket"></i> Sign out
+                    </button>
                 </div>
             </div>
         </div>
@@ -749,10 +784,6 @@
                     <div class="card-label">Average Income</div>
                     <div class="card-value" id="dbIncome">Rs.0</div>
                     <div class="card-change" id="dbIncomePct"><i class="fas fa-chart-line"></i> 100% base salary</div>
-                    <div style="display:flex; align-items:center; gap:6px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
-                        <label for="monthlySalary" style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap;">Base Salary</label>
-                        <input type="number" id="monthlySalary" placeholder="Enter salary" min="0" step="1000" style="flex:1; min-width:0; background:transparent; border:1px solid var(--border); border-radius:6px; padding:4px 8px; color:var(--text); font-size:0.85rem; font-weight:600; font-family:inherit;" onchange="updateSalary()" onkeydown="if(event.key==='Enter'){this.blur();}" title="Drives Budget targets in Budget vs Actual, EMI %, Investment % etc.">
-                    </div>
                 </div>
                 <div class="dash-card budget" id="dbPureAvgCard" title="Average monthly expense excluding EMI and Investment — your 'pure' lifestyle spend">
                     <div class="card-icon"><i class="fas fa-hand-holding-dollar"></i></div>
@@ -1486,6 +1517,25 @@
                 <button class="btn btn-primary btn-radiant" onclick="saveConfig()"><i class="fas fa-save"></i> Save</button>
                 <button class="btn btn-success" onclick="testConnection()" title="Test Connection" aria-label="Test Connection"><i class="fas fa-plug"></i></button>
                 <button class="btn btn-secondary" onclick="syncNow()" title="Sync Now" aria-label="Sync Now"><i class="fas fa-rotate"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="salaryConfigModal" style="z-index:3100;" onclick="if(event.target===this) toggleSalaryModal();">
+        <div class="modal" style="max-width:380px;">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fas fa-wallet"></i> Base Salary</div>
+                <button class="modal-close" onclick="toggleSalaryModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="monthlySalary">Monthly Base Salary</label>
+                <input type="number" id="monthlySalary" placeholder="Enter salary" min="0" step="1000" style="width:100%;" onkeydown="if(event.key==='Enter'){saveSalaryAndClose();}" title="Drives Budget targets in Budget vs Actual, EMI %, Investment % etc.">
+            </div>
+            <div style="font-size:0.76rem; color:var(--text-muted); line-height:1.6; margin-top:2px;">
+                Used to calculate Budget targets, EMI %, and Investment % across the dashboard.
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:16px;">
+                <button class="btn btn-primary btn-radiant" onclick="saveSalaryAndClose()"><i class="fas fa-save"></i> Save</button>
             </div>
         </div>
     </div>
@@ -2630,6 +2680,8 @@ function renderDashboard() {
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     const salaryInputEl = document.getElementById('monthlySalary');
     if (salaryInputEl && document.activeElement !== salaryInputEl) salaryInputEl.value = state.salary > 0 ? state.salary : '';
+    const salaryPillTextEl = document.getElementById('salaryPillText');
+    if (salaryPillTextEl) salaryPillTextEl.textContent = state.salary > 0 ? fmt(state.salary) + ' salary' : 'Set base salary';
     animateCardValue('dbIncome', averageIncome, fmt);
     animateCardValue('dbSavings', totalSavingsAllTime, fmt);
     animateCardValue('dbInvestments', totalInvestmentAllTime, fmt);
@@ -4272,6 +4324,27 @@ function updateSalary() {
     saveState();
     renderAll();
     showToast('Salary updated! All budgets recalculated.', 'success');
+}
+
+function toggleSalaryModal() {
+    const modal = document.getElementById('salaryConfigModal');
+    const pillBtn = document.getElementById('salaryPillBtn');
+    if (!modal) return;
+    const opening = !modal.classList.contains('active');
+    modal.classList.toggle('active');
+    if (pillBtn) pillBtn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+    if (opening) {
+        const input = document.getElementById('monthlySalary');
+        if (input) {
+            input.value = state.salary > 0 ? state.salary : '';
+            setTimeout(() => input.focus(), 50);
+        }
+    }
+}
+
+function saveSalaryAndClose() {
+    updateSalary();
+    if (state.salary > 0) toggleSalaryModal();
 }
 
 let preselectedTxType = null;
@@ -7569,8 +7642,12 @@ function showApp() {
     const nameEl = document.getElementById('userBadgeName');
     const avatarEl = document.getElementById('userBadgeAvatar');
     const badgeEl = document.getElementById('userBadge');
+    const dropdownNameEl = document.getElementById('userDropdownName');
+    const dropdownEmailEl = document.getElementById('userDropdownEmail');
     if (nameEl) nameEl.textContent = name;
-    if (badgeEl) badgeEl.title = email ? ('Signed in as ' + email + ' — click to sign out') : 'Click to sign out';
+    if (badgeEl) badgeEl.title = email ? ('Signed in as ' + email) : 'Account';
+    if (dropdownNameEl) dropdownNameEl.textContent = name;
+    if (dropdownEmailEl) dropdownEmailEl.textContent = email || 'Local guest session';
     if (avatarEl) {
         if (picture) {
             avatarEl.innerHTML = '<img src="' + picture.replace(/"/g, '&quot;') + '" alt="" referrerpolicy="no-referrer">';
@@ -7579,6 +7656,35 @@ function showApp() {
         }
     }
 }
+
+// ---- Account dropdown (styled to match the app theme rather than a native confirm() popup) ----
+function toggleUserDropdown(e) {
+    if (e) e.stopPropagation();
+    const dropdown = document.getElementById('userDropdown');
+    const badge = document.getElementById('userBadge');
+    if (!dropdown || !badge) return;
+    const willOpen = dropdown.classList.contains('hidden');
+    if (willOpen) {
+        const btnRect = badge.getBoundingClientRect();
+        const dropdownWidth = 208;
+        let left = btnRect.right - dropdownWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - dropdownWidth - 8));
+        dropdown.style.top = (btnRect.bottom + 8) + 'px';
+        dropdown.style.left = left + 'px';
+    }
+    dropdown.classList.toggle('hidden');
+    badge.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+}
+document.addEventListener('click', () => {
+    const dropdown = document.getElementById('userDropdown');
+    const badge = document.getElementById('userBadge');
+    if (dropdown) dropdown.classList.add('hidden');
+    if (badge) badge.setAttribute('aria-expanded', 'false');
+});
+window.addEventListener('resize', () => {
+    const dropdown = document.getElementById('userDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+});
 
 // ---- Google Sign-In ----
 // Uses Google Identity Services (loaded via the <script src="https://accounts.google.com/gsi/client">
@@ -7707,8 +7813,6 @@ function clearGoogleConfig() {
 
 function logoutUser() {
     const authMethod = localStorage.getItem('pfm_auth_method');
-    const confirmMsg = authMethod === 'google' ? 'Sign out of your Google account?' : 'End your guest session?';
-    if (!confirm(confirmMsg)) return;
     const email = localStorage.getItem('pfm_user_email');
     localStorage.removeItem('pfm_user');
     localStorage.removeItem('pfm_user_email');
