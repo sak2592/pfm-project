@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal Finance Manager | Budget, Loans & Wealth Tracker</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23a5b4fc'/%3E%3Cstop offset='45%25' stop-color='%236366f1'/%3E%3Cstop offset='100%25' stop-color='%238b5cf6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='52' height='52' rx='14' fill='url(%23g)'/%3E%3Cpath d='M7 33 L17.5 22.5 L24.5 29.5 L37 15' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M29.5 15 H37 V22.5' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='7' cy='33' r='3.1' fill='white'/%3E%3Ccircle cx='17.5' cy='22.5' r='3.1' fill='white'/%3E%3Ccircle cx='24.5' cy='29.5' r='3.1' fill='white'/%3E%3Ccircle cx='37' cy='15' r='3.1' fill='white'/%3E%3C/svg%3E">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -69,7 +70,7 @@
                 radial-gradient(ellipse at 80% 80%, rgba(16,185,129,0.07) 0%, transparent 50%),
                 radial-gradient(ellipse at 50% 50%, rgba(139,92,246,0.05) 0%, transparent 60%); }
         .container { max-width: 1500px; margin: 0 auto; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0 30px; margin-bottom: 10px; border-bottom: 1px solid var(--border); flex-wrap: nowrap; gap: 16px; overflow-x: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0 30px; margin-bottom: 10px; flex-wrap: nowrap; gap: 16px; overflow-x: auto; }
         .logo { display: flex; align-items: center; gap: 14px; }
         .logo-icon { width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; flex-shrink: 0;
             background: linear-gradient(155deg, #a5b4fc 0%, var(--primary) 45%, var(--purple) 100%);
@@ -544,6 +545,56 @@
         @media (prefers-reduced-motion: reduce) {
             .dash-card, .invest-node, .goal-nodal, .util-node { animation: none; }
         }
+
+        /* ---- Login screen ---- */
+        .login-screen {
+            position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center;
+            background: var(--bg);
+        }
+        .login-screen::before {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(120% 120% at 50% 0%, rgba(99,102,241,0.18), transparent 60%);
+            pointer-events: none;
+        }
+        .login-card {
+            position: relative; z-index: 1; width: 100%; max-width: 384px; margin: 20px;
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px;
+            padding: 28px; text-align: center;
+            animation: alertBannerIn 0.4s ease;
+        }
+        .login-logo {
+            width: 56px; height: 56px; border-radius: 12px; margin: 0 auto 16px;
+            display: flex; align-items: center; justify-content: center; font-size: 1.6rem; color: #fff;
+            background: linear-gradient(135deg, var(--primary), var(--cyan));
+            box-shadow: 0 0 0 1px rgba(99,102,241,0.15), 0 8px 24px -8px rgba(99,102,241,0.45);
+        }
+        .login-title { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; color: var(--text); }
+        .login-subtitle { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; margin-bottom: 24px; line-height: 1.5; }
+        .login-note { margin-top: 16px; font-size: 0.76rem; color: var(--text-muted); }
+        .user-badge {
+            display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px;
+            background: var(--input-bg); border: 1px solid var(--border); font-size: 0.82rem; color: var(--text);
+            cursor: pointer; transition: all 0.2s;
+        }
+        .user-badge:hover { border-color: var(--primary); }
+        .user-badge-avatar {
+            width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, var(--primary), var(--purple)); color: #fff; font-size: 0.72rem; font-weight: 700; flex-shrink: 0;
+            overflow: hidden;
+        }
+        .user-badge-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .google-btn-slot { display: flex; justify-content: center; min-height: 40px; margin-bottom: 4px; }
+        .google-setup-hint {
+            margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: var(--input-bg); border: 1px dashed var(--border);
+            font-size: 0.74rem; color: var(--text-muted); text-align: left; line-height: 1.5;
+        }
+        .google-setup-hint a { color: var(--primary); cursor: pointer; text-decoration: underline; }
+        .login-gear-btn {
+            position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid var(--border);
+            color: var(--text-muted); cursor: pointer; transition: all 0.15s ease;
+        }
+        .login-gear-btn:hover { color: var(--text); border-color: var(--primary); }
     </style>
     </style>
 <base target="_blank">
@@ -560,10 +611,24 @@
             document.documentElement.setAttribute('data-theme', saved);
         })();
     </script>
+    <div class="login-screen" id="loginScreen" style="display:none;">
+        <div class="login-card">
+            <button type="button" class="login-gear-btn" onclick="toggleGoogleConfig()" title="Configure Google Sign-In" aria-label="Configure Google Sign-In"><i class="fas fa-gear"></i></button>
+            <div class="login-logo"><i class="fas fa-wallet"></i></div>
+            <div class="login-title">Welcome to PFM</div>
+            <div class="login-subtitle" id="loginSubtitle">Sign in with Google to continue.</div>
+            <div class="google-btn-slot" id="googleBtnSlot"></div>
+            <div class="login-note">Signing in with Google just confirms who you are — your finance data isn't sent to Google.</div>
+            <div class="google-setup-hint" id="googleSetupHint" style="display:none;">
+                Google Sign-In isn't configured yet. <a onclick="toggleGoogleConfig()">Add your Google Client ID</a> to enable access.
+            </div>
+        </div>
+    </div>
+
     <canvas id="bg3d-canvas"></canvas>
     <div class="css-fallback-stars" id="cssFallbackStars"></div>
     <div class="bg-mesh"></div>
-    <div class="container">
+    <div class="container" id="appContainer" style="display:none;">
         <div class="header">
             <div class="logo">
                 <div class="logo-icon">
@@ -1372,6 +1437,10 @@
         </div>
     </div>
 
+    <footer style="text-align:center; padding:24px 20px 32px; color:var(--text-muted); font-size:0.82rem;">
+        Created by Selim Aktar Khan
+    </footer>
+
     <!-- Google Sheets Connection Config -->
     <div class="modal-overlay" id="connectionConfig" onclick="if(event.target===this) toggleConfig();">
         <div class="modal" style="max-width:440px;">
@@ -1387,6 +1456,28 @@
                 <button class="btn btn-primary btn-radiant" onclick="saveConfig()"><i class="fas fa-save"></i> Save</button>
                 <button class="btn btn-success" onclick="testConnection()" title="Test Connection" aria-label="Test Connection"><i class="fas fa-plug"></i></button>
                 <button class="btn btn-secondary" onclick="syncNow()" title="Sync Now" aria-label="Sync Now"><i class="fas fa-rotate"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="googleConfigModal" style="z-index:3100;" onclick="if(event.target===this) toggleGoogleConfig();">
+        <div class="modal" style="max-width:440px;">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fab fa-google"></i> Google Sign-In Setup</div>
+                <button class="modal-close" onclick="toggleGoogleConfig()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Google OAuth Client ID</label>
+                <input type="text" id="googleClientIdInput" placeholder="123456789-abc.apps.googleusercontent.com" value="" style="width:100%;">
+            </div>
+            <div style="font-size:0.76rem; color:var(--text-muted); line-height:1.6; margin-top:6px;">
+                1. In <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--primary);">Google Cloud Console → Credentials</a>, create an OAuth 2.0 Client ID of type "Web application".<br>
+                2. Add this page's exact URL under "Authorized JavaScript origins" (e.g. <code>https://yoursite.com</code>).<br>
+                3. Paste the Client ID above and save. It's stored only in this browser's local storage.
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:16px;">
+                <button class="btn btn-primary btn-radiant" onclick="saveGoogleConfig()"><i class="fas fa-save"></i> Save</button>
+                <button class="btn btn-secondary" onclick="clearGoogleConfig()" title="Remove Client ID" aria-label="Remove Client ID"><i class="fas fa-trash"></i></button>
             </div>
         </div>
     </div>
@@ -7420,7 +7511,8 @@ function toggleTheme() {
     applyTheme(current === 'light' ? 'dark' : 'light');
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+// ---- Auth (Google Sign-In only) ----
+async function initApp() {
     // Sync the header toggle icon with whatever theme the pre-paint script already applied.
     applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
     const savedUrl = localStorage.getItem('gasUrl');
@@ -7432,6 +7524,166 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadData();
     populateFilters();
     renderAll();
+}
+
+function showApp() {
+    const loginScreen = document.getElementById('loginScreen');
+    const appContainer = document.getElementById('appContainer');
+    if (loginScreen) loginScreen.style.display = 'none';
+    if (appContainer) appContainer.style.display = '';
+    const name = localStorage.getItem('pfm_user') || 'Account';
+    const picture = localStorage.getItem('pfm_user_picture') || '';
+    const email = localStorage.getItem('pfm_user_email') || '';
+    const nameEl = document.getElementById('userBadgeName');
+    const avatarEl = document.getElementById('userBadgeAvatar');
+    const badgeEl = document.getElementById('userBadge');
+    if (nameEl) nameEl.textContent = name;
+    if (badgeEl) badgeEl.title = email ? ('Signed in as ' + email + ' — click to sign out') : 'Click to sign out';
+    if (avatarEl) {
+        if (picture) {
+            avatarEl.innerHTML = '<img src="' + picture.replace(/"/g, '&quot;') + '" alt="" referrerpolicy="no-referrer">';
+        } else {
+            avatarEl.textContent = name.charAt(0).toUpperCase();
+        }
+    }
+}
+
+// ---- Google Sign-In ----
+// Uses Google Identity Services (loaded via the <script src="https://accounts.google.com/gsi/client">
+// tag in <head>). This is a client-only integration: the ID token returned by Google is decoded
+// locally just to read the signed-in person's name/email/photo for the header badge and access
+// gate. There's no server here to verify the token's signature, so treat this as "who is this,
+// for a nicer UI" rather than a security boundary protecting sensitive data on a backend.
+function getGoogleClientId() {
+    try { return localStorage.getItem('googleClientId') || ''; } catch (e) { return ''; }
+}
+
+function decodeJwtPayload(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const json = decodeURIComponent(atob(base64).split('').map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(json);
+    } catch (e) {
+        console.error('Failed to decode Google credential', e);
+        return null;
+    }
+}
+
+function handleGoogleCredentialResponse(response) {
+    const payload = decodeJwtPayload(response.credential);
+    if (!payload || !payload.email) {
+        if (typeof showToast === 'function') showToast('Google sign-in failed to return a profile. Please try again.', 'error');
+        return;
+    }
+    localStorage.setItem('pfm_user', payload.name || payload.email);
+    localStorage.setItem('pfm_user_email', payload.email);
+    localStorage.setItem('pfm_user_picture', payload.picture || '');
+    localStorage.setItem('pfm_user_sub', payload.sub || '');
+    localStorage.setItem('pfm_auth_method', 'google');
+    showApp();
+    initApp();
+}
+
+function initGoogleAuth() {
+    const clientId = getGoogleClientId();
+    const btnSlot = document.getElementById('googleBtnSlot');
+    const hint = document.getElementById('googleSetupHint');
+    if (!clientId) {
+        if (btnSlot) btnSlot.style.display = 'none';
+        if (hint) hint.style.display = 'block';
+        return;
+    }
+    if (hint) hint.style.display = 'none';
+    if (btnSlot) btnSlot.style.display = 'flex';
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+        // GIS script hasn't loaded yet (slow network, blocked CDN) - retry shortly.
+        setTimeout(initGoogleAuth, 300);
+        return;
+    }
+    try {
+        google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true
+        });
+        if (btnSlot) {
+            btnSlot.innerHTML = '';
+            google.accounts.id.renderButton(btnSlot, {
+                theme: document.documentElement.getAttribute('data-theme') === 'light' ? 'outline' : 'filled_black',
+                size: 'large',
+                shape: 'pill',
+                width: 320,
+                text: 'signin_with'
+            });
+        }
+    } catch (e) {
+        console.error('Google Sign-In init failed', e);
+        if (btnSlot) btnSlot.style.display = 'none';
+        if (hint) {
+            hint.style.display = 'block';
+            hint.innerHTML = 'Google Sign-In could not start (check that this page\'s URL is added as an Authorized JavaScript origin for the Client ID). <a onclick="toggleGoogleConfig()">Edit Client ID</a>.';
+        }
+    }
+}
+
+function toggleGoogleConfig() {
+    const el = document.getElementById('googleConfigModal');
+    if (!el) return;
+    const opening = !el.classList.contains('active');
+    el.classList.toggle('active');
+    if (opening) {
+        const input = document.getElementById('googleClientIdInput');
+        if (input) input.value = getGoogleClientId();
+    }
+}
+
+function saveGoogleConfig() {
+    const val = document.getElementById('googleClientIdInput')?.value?.trim();
+    if (!val) { if (typeof showToast === 'function') showToast('Enter a Google Client ID first.', 'error'); return; }
+    localStorage.setItem('googleClientId', val);
+    toggleGoogleConfig();
+    if (typeof showToast === 'function') showToast('Google Client ID saved. Reloading Sign-In button...', 'success');
+    initGoogleAuth();
+}
+
+function clearGoogleConfig() {
+    localStorage.removeItem('googleClientId');
+    const input = document.getElementById('googleClientIdInput');
+    if (input) input.value = '';
+    toggleGoogleConfig();
+    initGoogleAuth();
+}
+
+function logoutUser() {
+    if (!confirm('Sign out of your Google account?')) return;
+    const email = localStorage.getItem('pfm_user_email');
+    localStorage.removeItem('pfm_user');
+    localStorage.removeItem('pfm_user_email');
+    localStorage.removeItem('pfm_user_picture');
+    localStorage.removeItem('pfm_user_sub');
+    localStorage.removeItem('pfm_auth_method');
+    try {
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+            google.accounts.id.disableAutoSelect();
+            if (email) google.accounts.id.revoke(email, () => {});
+        }
+    } catch (e) { /* Google Sign-In not loaded - nothing to clean up */ }
+    location.reload();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initGoogleAuth();
+    const loggedIn = localStorage.getItem('pfm_user');
+    if (loggedIn) {
+        showApp();
+        initApp();
+    } else {
+        document.getElementById('loginScreen').style.display = 'flex';
+    }
 });
 
 // Multi-device use (phone + laptop + a tab left open) is exactly the scenario the save-side
