@@ -595,6 +595,30 @@
             color: var(--text-muted); cursor: pointer; transition: all 0.15s ease;
         }
         .login-gear-btn:hover { color: var(--text); border-color: var(--primary); }
+        .login-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+        .login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .login-divider span { font-size: 0.72rem; color: var(--text-muted); }
+        .guest-btn { width: 100%; justify-content: center; background: transparent; color: var(--text); border: 1px solid transparent; position: relative; overflow: hidden; z-index: 0; }
+        .guest-btn::before {
+            content: ''; position: absolute; inset: 0; border-radius: 10px; padding: 1.3px;
+            background: linear-gradient(115deg, var(--primary), var(--pink), var(--purple), var(--primary));
+            background-size: 300% 300%;
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor; mask-composite: exclude;
+            opacity: 0.85; pointer-events: none; z-index: 1;
+            animation: alertBorderShift 6s ease-in-out infinite;
+        }
+        .guest-btn::after {
+            content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+            background: linear-gradient(100deg, transparent, rgba(255,255,255,0.22), transparent);
+            transform: skewX(-18deg); pointer-events: none; z-index: 1;
+            animation: alertShimmer 5.5s ease-in-out infinite;
+        }
+        .guest-btn:hover { background: rgba(255,255,255,0.05); }
+        .guest-btn i, .guest-btn span { position: relative; z-index: 2; }
+        @media (prefers-reduced-motion: reduce) {
+            .guest-btn::before, .guest-btn::after { animation: none; }
+        }
     </style>
     </style>
 <base target="_blank">
@@ -622,6 +646,8 @@
             <div class="google-setup-hint" id="googleSetupHint" style="display:none;">
                 Google Sign-In isn't configured yet. <a onclick="toggleGoogleConfig()">Add your Google Client ID</a> to enable access.
             </div>
+            <div class="login-divider"><span>or</span></div>
+            <button type="button" class="btn guest-btn" onclick="loginAsGuest()"><i class="fas fa-user"></i> Continue as Guest</button>
         </div>
     </div>
 
@@ -7593,6 +7619,21 @@ function handleGoogleCredentialResponse(response) {
     initApp();
 }
 
+// ---- Guest sign-in ----
+// No account, no Google Client ID needed - just a local session so the app
+// (and its localStorage-backed data) is usable right away. Anyone who later
+// wants to sync to Google Sheets or keep data tied to an identity can still
+// sign in with Google from the header user badge / by signing out first.
+function loginAsGuest() {
+    localStorage.setItem('pfm_user', 'Guest');
+    localStorage.removeItem('pfm_user_email');
+    localStorage.removeItem('pfm_user_picture');
+    localStorage.removeItem('pfm_user_sub');
+    localStorage.setItem('pfm_auth_method', 'guest');
+    showApp();
+    initApp();
+}
+
 function initGoogleAuth() {
     const clientId = getGoogleClientId();
     const btnSlot = document.getElementById('googleBtnSlot');
@@ -7665,19 +7706,23 @@ function clearGoogleConfig() {
 }
 
 function logoutUser() {
-    if (!confirm('Sign out of your Google account?')) return;
+    const authMethod = localStorage.getItem('pfm_auth_method');
+    const confirmMsg = authMethod === 'google' ? 'Sign out of your Google account?' : 'End your guest session?';
+    if (!confirm(confirmMsg)) return;
     const email = localStorage.getItem('pfm_user_email');
     localStorage.removeItem('pfm_user');
     localStorage.removeItem('pfm_user_email');
     localStorage.removeItem('pfm_user_picture');
     localStorage.removeItem('pfm_user_sub');
     localStorage.removeItem('pfm_auth_method');
-    try {
-        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-            google.accounts.id.disableAutoSelect();
-            if (email) google.accounts.id.revoke(email, () => {});
-        }
-    } catch (e) { /* Google Sign-In not loaded - nothing to clean up */ }
+    if (authMethod === 'google') {
+        try {
+            if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                google.accounts.id.disableAutoSelect();
+                if (email) google.accounts.id.revoke(email, () => {});
+            }
+        } catch (e) { /* Google Sign-In not loaded - nothing to clean up */ }
+    }
     location.reload();
 }
 
