@@ -70,7 +70,7 @@
                 radial-gradient(ellipse at 80% 80%, rgba(16,185,129,0.07) 0%, transparent 50%),
                 radial-gradient(ellipse at 50% 50%, rgba(139,92,246,0.05) 0%, transparent 60%); }
         .container { max-width: 1500px; margin: 0 auto; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0 30px; margin-bottom: 10px; flex-wrap: nowrap; gap: 16px; overflow-x: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0 30px; margin-bottom: 10px; flex-wrap: nowrap; gap: 16px; overflow-x: auto; position: sticky; top: 0; z-index: 200; background: transparent; }
         .logo { display: flex; align-items: center; gap: 14px; }
         .logo-icon { width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; flex-shrink: 0;
             background: linear-gradient(155deg, #a5b4fc 0%, var(--primary) 45%, var(--purple) 100%);
@@ -133,7 +133,7 @@
         /* Tactile press feedback on every button — a quick, subtle scale-down on click */
         .btn:active { transform: scale(0.96) !important; transition: transform 0.1s ease !important; }
         .nav-tab:active { transform: scale(0.96); }
-        .nav-tabs { display: flex; gap: 8px; margin-bottom: 30px; background: transparent; padding: 6px; border-radius: 14px; border: 1px solid var(--border); overflow-x: auto; }
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 30px; background: transparent; padding: 6px; border-radius: 14px; border: 1px solid var(--border); overflow-x: auto; position: sticky; top: var(--sticky-navtabs-top, 84px); z-index: 190; }
         .nav-tab { padding: 12px 20px; border: none; background: transparent; color: var(--text-muted); font-family: inherit; font-weight: 600; cursor: pointer; border-radius: 10px; transition: all 0.25s; font-size: 0.85rem; white-space: nowrap; display: flex; align-items: center; gap: 8px; position: relative; z-index: 1; }
         .nav-tab.active { background: linear-gradient(115deg, var(--primary), var(--purple), var(--pink), var(--primary)); background-size: 300% 300%; animation: radiantShift 5s ease-in-out infinite, navGlowPulse 2.4s ease-in-out infinite; color: #ffffff; font-weight: 700; position: relative; z-index: 2; }
         .nav-tab.active i, .nav-tab.active span { position: relative; z-index: 2; color: #ffffff; }
@@ -373,7 +373,7 @@
         #analysisChartWrap { position: relative; width: 100%; }
         .analysis-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; background: var(--input-bg); border: 1px solid var(--border); }
         .analysis-chip .chip-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-        .alert-banner { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 16px; margin-bottom: 22px; border: 1.5px solid transparent; background: radial-gradient(120% 200% at 0% 0%, var(--node-bg, rgba(99,102,241,0.22)), transparent 60%); background-origin: border-box; position: relative; overflow: hidden; box-shadow: 0 12px 34px -14px var(--node-glow, var(--node-color, var(--primary))), inset 0 0 0 1px rgba(255,255,255,0.03); animation: alertBannerIn 0.4s ease; transition: box-shadow 0.5s ease; }
+        .alert-banner { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 16px; margin-bottom: 22px; border: 1.5px solid transparent; background: transparent; background-origin: border-box; position: sticky; top: var(--sticky-header-h, 84px); z-index: 195; overflow: hidden; box-shadow: 0 12px 34px -14px var(--node-glow, var(--node-color, var(--primary))), inset 0 0 0 1px rgba(255,255,255,0.03); animation: alertBannerIn 0.4s ease; transition: box-shadow 0.5s ease; }
         .alert-banner::before { content: ''; position: absolute; inset: 0; border-radius: 16px; padding: 1.5px; background: linear-gradient(115deg, var(--node-color, var(--primary)), transparent 35%, transparent 65%, var(--node-color, var(--primary))); background-size: 250% 250%; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0.65; pointer-events: none; animation: alertBorderShift 6s ease-in-out infinite; }
         .alert-banner::after { content: ''; position: absolute; top: 0; left: -60%; width: 45%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.16), transparent); transform: skewX(-18deg); pointer-events: none; animation: alertShimmer 5s ease-in-out infinite; }
         @keyframes alertBannerIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
@@ -578,16 +578,13 @@
         .login-note { margin-top: 16px; font-size: 0.76rem; color: var(--text-muted); }
         .user-badge {
             display: flex; align-items: center; gap: 6px; padding: 6px 10px 6px 6px; border-radius: 999px;
-            font-size: 0.74rem; font-weight: 700; color: var(--text); cursor: pointer; position: relative; overflow: hidden; border: 1px solid transparent;
+            font-size: 0.74rem; font-weight: 700; color: var(--text); cursor: pointer; position: relative; overflow: hidden; border: none;
             background: radial-gradient(120% 200% at 100% 0%, rgba(139,92,246,0.22), transparent 60%), linear-gradient(120deg, var(--card-bg) 45%, rgba(99,102,241,0.12) 200%);
-            box-shadow: 0 6px 18px -8px rgba(99,102,241,0.55), inset 0 0 0 1px rgba(255,255,255,0.04);
         }
-        .user-badge::before { content: ''; position: absolute; inset: 0; border-radius: 999px; padding: 1.3px; background: linear-gradient(115deg, var(--primary), var(--pink), var(--purple), var(--primary)); background-size: 300% 300%; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0.85; pointer-events: none; animation: alertBorderShift 6s ease-in-out infinite; }
-        .user-badge::after { content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.35), transparent); transform: skewX(-18deg); pointer-events: none; animation: alertShimmer 5.5s ease-in-out infinite; }
         .user-badge > * { position: relative; z-index: 1; }
         .user-badge-avatar {
-            width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            background: linear-gradient(135deg, var(--primary), var(--purple)); color: #fff; font-size: 0.62rem; font-weight: 700; flex-shrink: 0;
+            width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            background: transparent; color: var(--text); font-size: 0.85rem; font-weight: 700; flex-shrink: 0;
             overflow: hidden;
         }
         .user-badge-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -698,9 +695,6 @@
                 </div>
             </div>
             <div class="header-actions">
-                <button class="btn btn-secondary theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light / dark theme" aria-label="Toggle light / dark theme">
-                    <i class="fas fa-moon" id="themeToggleIcon"></i>
-                </button>
                 <div class="sync-status-wrap">
                     <div class="sync-status synced" id="syncStatus" style="margin-right:8px;" title="Connected to Sheets — click to view connection string" onclick="toggleConfig()" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleConfig();}">
                         <i class="fas fa-cloud"></i> <span id="syncText">Connected to Sheets</span>
@@ -714,9 +708,8 @@
                     <span id="headerDateText"></span>
                 </div>
                 <button type="button" class="user-badge" id="userBadge" onclick="toggleUserDropdown(event)" title="Account" aria-haspopup="true" aria-expanded="false">
-                    <div class="user-badge-avatar" id="userBadgeAvatar">G</div>
-                    <span id="userBadgeName">Guest</span>
-                    <i class="fas fa-chevron-down user-badge-chevron"></i>
+                    <div class="user-badge-avatar" id="userBadgeAvatar"><i class="fas fa-circle-user"></i></div>
+                    <span id="userBadgeName" style="display:none;">Guest</span>
                 </button>
                 <div id="userDropdown" class="user-dropdown hidden">
                     <div class="user-dropdown-header">
@@ -2885,7 +2878,7 @@ function showSmartAlertBanner(alerts) {
 function renderSmartAlertBannerFrame() {
     const banner = document.getElementById('smartAlertBanner');
     if (!banner) return;
-    if (smartAlertsQueue.length === 0) { banner.style.display = 'none'; return; }
+    if (smartAlertsQueue.length === 0) { banner.style.display = 'none'; if (typeof syncStickyHeaderHeight === 'function') setTimeout(syncStickyHeaderHeight, 0); return; }
     if (smartAlertIdx >= smartAlertsQueue.length) smartAlertIdx = 0;
     const a = smartAlertsQueue[smartAlertIdx];
     const theme = SMART_ALERT_THEME[a.type] || SMART_ALERT_THEME.info;
@@ -2901,6 +2894,7 @@ function renderSmartAlertBannerFrame() {
     if (textEl) textEl.textContent = a.text;
     const bodyEl = banner.querySelector('.alert-banner-body');
     if (bodyEl) { bodyEl.classList.remove('refresh'); void bodyEl.offsetWidth; bodyEl.classList.add('refresh'); }
+    if (typeof syncStickyHeaderHeight === 'function') setTimeout(syncStickyHeaderHeight, 0);
     const nav = document.getElementById('alertBannerNav');
     const dots = document.getElementById('alertBannerDots');
     if (nav && dots) {
@@ -7675,6 +7669,28 @@ function toggleTheme() {
     applyTheme(current === 'light' ? 'dark' : 'light');
 }
 
+// Keeps the sticky offsets in sync with the real rendered heights of the
+// header and (when visible) the alert banner, so the nav-tabs always sit
+// flush underneath whichever of those are currently showing.
+function syncStickyHeaderHeight() {
+    const headerEl = document.querySelector('.header');
+    const bannerEl = document.getElementById('smartAlertBanner');
+    if (!headerEl) return;
+    const headerH = headerEl.offsetHeight;
+    document.documentElement.style.setProperty('--sticky-header-h', headerH + 'px');
+    const bannerVisible = bannerEl && bannerEl.offsetHeight > 0 && getComputedStyle(bannerEl).display !== 'none';
+    const bannerH = bannerVisible ? bannerEl.offsetHeight : 0;
+    document.documentElement.style.setProperty('--sticky-navtabs-top', (headerH + bannerH) + 'px');
+}
+window.addEventListener('load', syncStickyHeaderHeight);
+window.addEventListener('resize', syncStickyHeaderHeight);
+if (window.ResizeObserver) {
+    const headerElForObserver = document.querySelector('.header');
+    if (headerElForObserver) new ResizeObserver(syncStickyHeaderHeight).observe(headerElForObserver);
+    const bannerElForObserver = document.getElementById('smartAlertBanner');
+    if (bannerElForObserver) new ResizeObserver(syncStickyHeaderHeight).observe(bannerElForObserver);
+}
+
 // ---- Auth (Google Sign-In only) ----
 async function initApp() {
     // Sync the header toggle icon with whatever theme the pre-paint script already applied.
@@ -7695,6 +7711,7 @@ function showApp() {
     const appContainer = document.getElementById('appContainer');
     if (loginScreen) loginScreen.style.display = 'none';
     if (appContainer) appContainer.style.display = '';
+    if (typeof syncStickyHeaderHeight === 'function') setTimeout(syncStickyHeaderHeight, 0);
     const name = localStorage.getItem('pfm_user') || 'Account';
     const picture = localStorage.getItem('pfm_user_picture') || '';
     const email = localStorage.getItem('pfm_user_email') || '';
@@ -7711,7 +7728,7 @@ function showApp() {
         if (picture) {
             avatarEl.innerHTML = '<img src="' + picture.replace(/"/g, '&quot;') + '" alt="" referrerpolicy="no-referrer">';
         } else {
-            avatarEl.textContent = name.charAt(0).toUpperCase();
+            avatarEl.innerHTML = '<i class="fas fa-circle-user"></i>';
         }
     }
 }
