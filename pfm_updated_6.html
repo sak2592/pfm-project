@@ -87,7 +87,9 @@
         .date-pill::before { content: ''; position: absolute; inset: 0; border-radius: 999px; padding: 1.3px; background: linear-gradient(115deg, var(--primary), var(--pink), var(--purple), var(--primary)); background-size: 300% 300%; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0.85; pointer-events: none; animation: alertBorderShift 6s ease-in-out infinite; }
         .date-pill::after { content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.35), transparent); transform: skewX(-18deg); pointer-events: none; animation: alertShimmer 5.5s ease-in-out infinite; }
         .date-pill i { color: var(--primary); font-size: 0.85rem; position: relative; z-index: 1; }
-        .sync-status { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: var(--card-bg); border: 1px solid var(--border); cursor: default; }
+        .sync-status-wrap { position: relative; }
+        .sync-status { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: var(--card-bg); border: 1px solid var(--border); cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+        .sync-status:hover { transform: translateY(-1px); box-shadow: 0 4px 14px -4px rgba(0,0,0,0.4); }
         .sync-status span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
         .sync-status i { font-size: 0.95rem; color: var(--warning); transition: color 0.3s ease; }
         .sync-status.synced { border-color: rgba(16,185,129,0.35); }
@@ -583,8 +585,10 @@
                 <button class="btn btn-secondary theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light / dark theme" aria-label="Toggle light / dark theme">
                     <i class="fas fa-moon" id="themeToggleIcon"></i>
                 </button>
-                <div class="sync-status synced" id="syncStatus" style="margin-right:8px;" title="Connected to Sheets">
-                    <i class="fas fa-cloud"></i> <span id="syncText">Connected to Sheets</span>
+                <div class="sync-status-wrap">
+                    <div class="sync-status synced" id="syncStatus" style="margin-right:8px;" title="Connected to Sheets — click to view connection string" onclick="toggleConfig()" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleConfig();}">
+                        <i class="fas fa-cloud"></i> <span id="syncText">Connected to Sheets</span>
+                    </div>
                 </div>
                 <button class="btn btn-primary btn-radiant" onclick="openModal('transaction')">
                     <i class="fas fa-plus"></i> <span>Add Transaction</span>
@@ -594,31 +598,6 @@
                     <span id="headerDateText"></span>
                 </div>
             </div>
-        </div>
-
-        <!-- Google Sheets Connection Config -->
-        <div class="config-panel" id="connectionConfig" style="display:none;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <strong><i class="fas fa-link"></i> Google Sheets Connection</strong>
-                <button class="btn btn-prepay-style" style="padding:6px 12px; font-size:0.8rem;" onclick="toggleConfig()"><i class="fas fa-chevron-up"></i> Hide</button>
-            </div>
-            <div class="form-row">
-                <div class="form-group" style="margin:0;">
-                    <label>Google Apps Script Web App URL</label>
-                    <input type="text" id="gasUrl" placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec" value="" style="width:100%;">
-                </div>
-                <div style="display:flex; align-items:flex-end; gap:10px;">
-                    <button class="btn btn-primary btn-radiant" onclick="saveConfig()" style="margin-bottom:10px;"><i class="fas fa-save"></i> Save</button>
-                    <button class="btn btn-success" onclick="testConnection()" style="margin-bottom:10px;" title="Test Connection" aria-label="Test Connection"><i class="fas fa-plug"></i></button>
-                    <button class="btn btn-secondary" onclick="syncNow()" style="margin-bottom:10px;" title="Sync Now" aria-label="Sync Now"><i class="fas fa-rotate"></i></button>
-                </div>
-            </div>
-        </div>
-
-        <div style="text-align:right; margin-bottom:10px;">
-            <button class="btn btn-prepay-style" style="padding:6px 12px; font-size:0.8rem;" onclick="toggleConfig()">
-                <i class="fas fa-gear"></i> Connection Settings
-            </button>
         </div>
 
         <div class="alert-banner" id="smartAlertBanner" style="display:none;" onmouseenter="pauseSmartAlertRotation()" onmouseleave="resumeSmartAlertRotation()">
@@ -1393,6 +1372,25 @@
         </div>
     </div>
 
+    <!-- Google Sheets Connection Config -->
+    <div class="modal-overlay" id="connectionConfig" onclick="if(event.target===this) toggleConfig();">
+        <div class="modal" style="max-width:440px;">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fas fa-link"></i> Google Sheets Connection</div>
+                <button class="modal-close" onclick="toggleConfig()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Google Apps Script Web App URL (Connection String)</label>
+                <input type="text" id="gasUrl" placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec" value="" style="width:100%;">
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:16px;">
+                <button class="btn btn-primary btn-radiant" onclick="saveConfig()"><i class="fas fa-save"></i> Save</button>
+                <button class="btn btn-success" onclick="testConnection()" title="Test Connection" aria-label="Test Connection"><i class="fas fa-plug"></i></button>
+                <button class="btn btn-secondary" onclick="syncNow()" title="Sync Now" aria-label="Sync Now"><i class="fas fa-rotate"></i></button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="modal">
         <div class="modal">
             <div class="modal-header"><div class="modal-title-group"><div class="tx-modal-icon" id="modalIcon"><i class="fas fa-layer-group"></i></div><div class="modal-title" id="modalTitle">Title</div></div><button class="modal-close" onclick="closeModal()">&times;</button></div>
@@ -1683,8 +1681,14 @@ function setSyncStatus(status, message) {
 
 function toggleConfig() {
     const panel = document.getElementById('connectionConfig');
-    if (panel) {
-        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    const trigger = document.getElementById('syncStatus');
+    if (!panel) return;
+    const opening = !panel.classList.contains('active');
+    panel.classList.toggle('active', opening);
+    if (trigger) trigger.setAttribute('aria-expanded', opening ? 'true' : 'false');
+    if (opening) {
+        const urlInput = document.getElementById('gasUrl');
+        if (urlInput) urlInput.value = CONFIG.GAS_URL || '';
     }
 }
 
@@ -1879,6 +1883,16 @@ loadData = async function() {
             const remoteTime = sheetData.lastModified || 0;
             if (localSaved && localTime > 0 && remoteTime > 0 && localTime > remoteTime) {
                 console.warn('Local data (', new Date(localTime), ') is newer than Sheets data (', new Date(remoteTime), ') - keeping local copy and re-syncing to Sheets instead of overwriting.');
+                // IMPORTANT: record what we currently know Sheets to contain BEFORE pushing.
+                // Without this, lastSyncedRemoteTime stays at its initial 0, and the very next
+                // saveDataToSheets() call (including the one a few lines below) sees "remote
+                // lastModified (a real timestamp) > lastSyncedRemoteTime (0)" and wrongly concludes
+                // Sheets has newer data than us - blocking the save with a "Newer data on Sheets"
+                // error every time, forever, for this tab session. That silently stops local changes
+                // (like resuming a Fixed Expense) from ever reaching Sheets, so any other device/tab
+                // keeps reading the old value from Sheets - which is exactly the "fixed item randomly
+                // gets paused" bug.
+                lastSyncedRemoteTime = remoteTime;
                 _originalLoadData();
                 if (typeof showToast === 'function') showToast('Local changes were newer than Google Sheets - kept your local data and re-syncing to Sheets.', 'success');
                 // Push the newer local copy back up so Sheets catches up, instead of leaving them mismatched.
