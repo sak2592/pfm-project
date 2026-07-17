@@ -139,6 +139,10 @@
         .nav-tab.active i, .nav-tab.active span { position: relative; z-index: 2; color: #ffffff; }
         @keyframes navGlowPulse { 0%, 100% { box-shadow: 0 4px 18px -3px rgba(99,102,241,0.55), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 0 0 rgba(139,92,246,0.45); } 50% { box-shadow: 0 4px 22px -2px rgba(99,102,241,0.8), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 14px 2px rgba(139,92,246,0.55); } }
         .nav-tab:hover:not(.active) { color: var(--text); background: rgba(99,102,241,0.12); box-shadow: inset 0 0 0 1px rgba(99,102,241,0.3); }
+
+        .bg-theme-card { display:flex; flex-direction:column; align-items:flex-start; text-align:left; padding:16px; border-radius:14px; border:1px solid var(--border); background: var(--card-bg); color: var(--text); cursor:pointer; font-family:inherit; transition: all 0.2s; }
+        .bg-theme-card:hover { border-color: rgba(99,102,241,0.5); transform: translateY(-1px); }
+        .bg-theme-card.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(99,102,241,0.25); background: rgba(99,102,241,0.08); }
         .tab-pane { display: none; animation: fadeIn 0.4s ease; }
         .tab-pane.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
@@ -1247,6 +1251,9 @@
                 <button class="nav-tab" onclick="switchAdminSection('networth')" data-admin-tab="networth">
                     <i class="fas fa-gem"></i> <span>Net Worth</span>
                 </button>
+                <button class="nav-tab" onclick="switchAdminSection('background')" data-admin-tab="background">
+                    <i class="fas fa-star"></i> <span>Background</span>
+                </button>
             </div>
 
             <div class="admin-section" id="adminSection-category">
@@ -1327,6 +1334,40 @@
                             <thead><tr><th>Liability</th><th>Type</th><th>Original</th><th>Outstanding</th><th>Monthly EMI</th><th>Rate</th><th>Months Left</th></tr></thead>
                             <tbody id="liabilityTable"></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-section" id="adminSection-background" style="display:none;">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fas fa-star"></i> 3D Background Theme</div>
+                    </div>
+                    <div style="margin-bottom: 16px; padding: 14px 18px; background: rgba(99,102,241,0.05); border-radius: 12px; border: 1px solid rgba(99,102,241,0.15); color: var(--text-muted); font-size: 0.85rem;">
+                        <i class="fas fa-circle-info" style="color: var(--primary);"></i>
+                        Choose the animated background that sits behind the whole app. Runs on Canvas2D — no external library needed, so it always works regardless of network/CDN restrictions.
+                    </div>
+                    <div id="bgThemeGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:14px;">
+                        <button type="button" class="bg-theme-card" data-bg-theme="galaxy" onclick="setBgTheme('galaxy')">
+                            <i class="fas fa-meteor" style="font-size:1.4rem; margin-bottom:8px; color:#a78bfa;"></i>
+                            <div style="font-weight:600;">Cosmic Sky</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">Galaxies, planets, comets — full night/day sky</div>
+                        </button>
+                        <button type="button" class="bg-theme-card" data-bg-theme="starfield" onclick="setBgTheme('starfield')">
+                            <i class="fas fa-star" style="font-size:1.4rem; margin-bottom:8px; color:#7dd3fc;"></i>
+                            <div style="font-weight:600;">Minimal Starfield</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">Simple twinkling stars, lighter on performance</div>
+                        </button>
+                        <button type="button" class="bg-theme-card" data-bg-theme="aurora" onclick="setBgTheme('aurora')">
+                            <i class="fas fa-water" style="font-size:1.4rem; margin-bottom:8px; color:#34d399;"></i>
+                            <div style="font-weight:600;">Aurora Waves</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">Flowing northern-lights ribbons of color</div>
+                        </button>
+                        <button type="button" class="bg-theme-card" data-bg-theme="off" onclick="setBgTheme('off')">
+                            <i class="fas fa-eye-slash" style="font-size:1.4rem; margin-bottom:8px; color:#94a3b8;"></i>
+                            <div style="font-weight:600;">Off</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">Plain background, no animation</div>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -4296,7 +4337,7 @@ function switchAdminSection(section) {
     const btn = document.querySelector('[data-admin-tab="' + section + '"]');
     if (btn) btn.classList.add('active');
 
-    ['category', 'fixedexpense', 'networth'].forEach(s => {
+    ['category', 'fixedexpense', 'networth', 'background'].forEach(s => {
         const el = document.getElementById('adminSection-' + s);
         if (el) el.style.display = (s === section) ? 'block' : 'none';
     });
@@ -4304,6 +4345,7 @@ function switchAdminSection(section) {
     if (section === 'category') renderCategoryConfig();
     else if (section === 'fixedexpense') renderRecurringExpense();
     else if (section === 'networth') { renderNetWorth(); setTimeout(renderNetWorthCharts, 100); }
+    else if (section === 'background') { if (window.refreshBgThemeUI) refreshBgThemeUI(); }
 }
 
 function renderChart(canvasId, type, data, options) {
@@ -8371,6 +8413,120 @@ window.addEventListener('focus', autoRefreshFromSheets);
             ctx.restore();
         }
 
+        // ==================== ALT THEME: MINIMAL STARFIELD ====================
+        // A lighter-weight option: simple twinkling dots, no galaxies/planets/comets.
+        var minimalStarCount = isSmall ? 140 : 240;
+        var minimalStars = [];
+        for (var ms = 0; ms < minimalStarCount; ms++) {
+            minimalStars.push({
+                x: Math.random() * W,
+                y: Math.random() * H,
+                r: 0.6 + Math.random() * 1.6,
+                baseAlpha: 0.35 + Math.random() * 0.5,
+                twinkleSpeed: 0.4 + Math.random() * 1.2,
+                twinklePhase: Math.random() * Math.PI * 2,
+                driftX: (Math.random() - 0.5) * 4,
+                driftY: (Math.random() - 0.5) * 2,
+                color: pick(colors)
+            });
+        }
+        function drawMinimalStarfield(t, dt){
+            ctx.save();
+            var bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+            bgGrad.addColorStop(0, isLightTheme() ? 'rgba(148,163,184,0.10)' : 'rgba(15,23,42,0.35)');
+            bgGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, W, H);
+            ctx.restore();
+            for (var i3 = 0; i3 < minimalStars.length; i3++) {
+                var s2 = minimalStars[i3];
+                if (!reduceMotion) {
+                    s2.x += s2.driftX * dt;
+                    s2.y += s2.driftY * dt;
+                    if (s2.x < -10) s2.x = W + 10; if (s2.x > W + 10) s2.x = -10;
+                    if (s2.y < -10) s2.y = H + 10; if (s2.y > H + 10) s2.y = -10;
+                }
+                var tw = reduceMotion ? s2.baseAlpha : s2.baseAlpha * (0.55 + 0.45 * Math.sin(t * s2.twinkleSpeed + s2.twinklePhase));
+                ctx.beginPath();
+                ctx.fillStyle = hexToRgba(s2.color, tw);
+                ctx.arc(s2.x, s2.y, s2.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // ==================== ALT THEME: AURORA WAVES ====================
+        // Flowing translucent ribbons drifting across the sky, northern-lights style.
+        var auroraRibbons = [
+            { colors: ['#34d399', '#06b6d4'], yFrac: 0.18, amp: 60, freq: 0.006, speed: 0.35, thickness: 90, phase: 0 },
+            { colors: ['#a78bfa', '#ec4899'], yFrac: 0.32, amp: 80, freq: 0.005, speed: 0.28, thickness: 110, phase: 2.1 },
+            { colors: ['#22d3ee', '#6366f1'], yFrac: 0.48, amp: 50, freq: 0.007, speed: 0.42, thickness: 70, phase: 4.4 }
+        ];
+        function drawAuroraWaves(t, dt){
+            ctx.save();
+            var bgGrad2 = ctx.createLinearGradient(0, 0, 0, H);
+            bgGrad2.addColorStop(0, isLightTheme() ? 'rgba(148,163,184,0.08)' : 'rgba(2,6,23,0.55)');
+            bgGrad2.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = bgGrad2;
+            ctx.fillRect(0, 0, W, H);
+            ctx.restore();
+
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            for (var ri2 = 0; ri2 < auroraRibbons.length; ri2++) {
+                var rb = auroraRibbons[ri2];
+                var baseY = H * rb.yFrac;
+                var tt = reduceMotion ? 0 : t * rb.speed;
+                var grad = ctx.createLinearGradient(0, baseY - rb.thickness, 0, baseY + rb.thickness);
+                grad.addColorStop(0, hexToRgba(rb.colors[0], 0));
+                grad.addColorStop(0.5, hexToRgba(rb.colors[0], 0.28));
+                grad.addColorStop(0.5, hexToRgba(rb.colors[1], 0.28));
+                grad.addColorStop(1, hexToRgba(rb.colors[1], 0));
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.moveTo(0, baseY);
+                for (var px2 = 0; px2 <= W; px2 += 12) {
+                    var y2 = baseY + Math.sin(px2 * rb.freq + tt + rb.phase) * rb.amp
+                        + Math.sin(px2 * rb.freq * 2.3 - tt * 1.4 + rb.phase) * rb.amp * 0.3;
+                    ctx.lineTo(px2, y2 - rb.thickness / 2);
+                }
+                for (var px3 = W; px3 >= 0; px3 -= 12) {
+                    var y3 = baseY + Math.sin(px3 * rb.freq + tt + rb.phase) * rb.amp
+                        + Math.sin(px3 * rb.freq * 2.3 - tt * 1.4 + rb.phase) * rb.amp * 0.3;
+                    ctx.lineTo(px3, y3 + rb.thickness / 2);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // a sprinkling of static stars underneath so it doesn't feel empty
+            for (var i4 = 0; i4 < minimalStars.length; i4 += 2) {
+                var s3 = minimalStars[i4];
+                var tw2 = reduceMotion ? s3.baseAlpha * 0.6 : s3.baseAlpha * 0.6 * (0.5 + 0.5 * Math.sin(t * s3.twinkleSpeed + s3.twinklePhase));
+                ctx.beginPath();
+                ctx.fillStyle = hexToRgba('#ffffff', tw2);
+                ctx.arc(s3.x, s3.y, s3.r * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // ==================== THEME SELECTION (persisted; picked in Admin -> Background) ====================
+        var bgTheme = 'galaxy';
+        try { bgTheme = localStorage.getItem('pfmBgTheme') || 'galaxy'; } catch (e) {}
+        window.setBgTheme = function(name){
+            bgTheme = name;
+            try { localStorage.setItem('pfmBgTheme', name); } catch (e) {}
+            canvas.style.display = (name === 'off') ? 'none' : 'block';
+            refreshBgThemeUI();
+        };
+        window.refreshBgThemeUI = function(){
+            document.querySelectorAll('.bg-theme-card').forEach(function(btn){
+                btn.classList.toggle('active', btn.getAttribute('data-bg-theme') === bgTheme);
+            });
+        };
+        canvas.style.display = (bgTheme === 'off') ? 'none' : 'block';
+        setTimeout(refreshBgThemeUI, 0);
+
         function drawDaySky(t, dt){
             // overcast storm tint behind everything else
             ctx.save();
@@ -8401,7 +8557,13 @@ window.addEventListener('focus', autoRefreshFromSheets);
             var dt = reduceMotion ? 0 : 1 / 60;
 
             ctx.clearRect(0, 0, W, H);
-            if (isLightTheme()) {
+            if (bgTheme === 'off') {
+                // leave canvas cleared, still tick the loop cheaply so switching back is instant
+            } else if (bgTheme === 'starfield') {
+                drawMinimalStarfield(t, dt);
+            } else if (bgTheme === 'aurora') {
+                drawAuroraWaves(t, dt);
+            } else if (isLightTheme()) {
                 drawDaySky(t, dt);
             } else {
                 drawNightSky(t, dt);
