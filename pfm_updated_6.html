@@ -723,6 +723,10 @@
                     <div class="card-label">Average Income</div>
                     <div class="card-value" id="dbIncome">Rs.0</div>
                     <div class="card-change" id="dbIncomePct"><i class="fas fa-chart-line"></i> 100% base salary</div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+                        <label for="monthlySalary" style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap;">Base Salary</label>
+                        <input type="number" id="monthlySalary" placeholder="Enter salary" min="0" step="1000" style="flex:1; min-width:0; background:transparent; border:1px solid var(--border); border-radius:6px; padding:4px 8px; color:var(--text); font-size:0.85rem; font-weight:600; font-family:inherit;" onchange="updateSalary()" onkeydown="if(event.key==='Enter'){this.blur();}" title="Drives Budget targets in Budget vs Actual, EMI %, Investment % etc.">
+                    </div>
                 </div>
                 <div class="dash-card budget" id="dbPureAvgCard" title="Average monthly expense excluding EMI and Investment — your 'pure' lifestyle spend">
                     <div class="card-icon"><i class="fas fa-hand-holding-dollar"></i></div>
@@ -2598,6 +2602,8 @@ function renderDashboard() {
     healthScore = Math.max(0, Math.min(100, healthScore));
 
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+    const salaryInputEl = document.getElementById('monthlySalary');
+    if (salaryInputEl && document.activeElement !== salaryInputEl) salaryInputEl.value = state.salary > 0 ? state.salary : '';
     animateCardValue('dbIncome', averageIncome, fmt);
     animateCardValue('dbSavings', totalSavingsAllTime, fmt);
     animateCardValue('dbInvestments', totalInvestmentAllTime, fmt);
