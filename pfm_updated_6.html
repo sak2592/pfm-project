@@ -70,7 +70,7 @@
                 radial-gradient(ellipse at 80% 80%, rgba(16,185,129,0.07) 0%, transparent 50%),
                 radial-gradient(ellipse at 50% 50%, rgba(139,92,246,0.05) 0%, transparent 60%); }
         .container { max-width: 1500px; margin: 0 auto; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0 30px; margin-bottom: 10px; flex-wrap: nowrap; gap: 16px; overflow-x: auto; position: sticky; top: 0; z-index: 200; background: transparent; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0 30px; margin-bottom: 10px; flex-wrap: nowrap; gap: 16px; overflow-x: auto; position: sticky; top: 0; z-index: 200; background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); }
         .logo { display: flex; align-items: center; gap: 14px; }
         .logo-icon { width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; flex-shrink: 0;
             background: linear-gradient(155deg, #a5b4fc 0%, var(--primary) 45%, var(--purple) 100%);
@@ -133,7 +133,7 @@
         /* Tactile press feedback on every button — a quick, subtle scale-down on click */
         .btn:active { transform: scale(0.96) !important; transition: transform 0.1s ease !important; }
         .nav-tab:active { transform: scale(0.96); }
-        .nav-tabs { display: flex; gap: 8px; margin-bottom: 30px; background: transparent; padding: 6px; border-radius: 14px; border: 1px solid var(--border); overflow-x: auto; position: sticky; top: var(--sticky-navtabs-top, 84px); z-index: 190; }
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 30px; background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); padding: 6px; border-radius: 14px; border: 1px solid var(--border); overflow-x: auto; position: sticky; top: var(--sticky-navtabs-top, 84px); z-index: 190; }
         .nav-tab { padding: 12px 20px; border: none; background: transparent; color: var(--text-muted); font-family: inherit; font-weight: 600; cursor: pointer; border-radius: 10px; transition: all 0.25s; font-size: 0.85rem; white-space: nowrap; display: flex; align-items: center; gap: 8px; position: relative; z-index: 1; }
         .nav-tab.active { background: linear-gradient(115deg, var(--primary), var(--purple), var(--pink), var(--primary)); background-size: 300% 300%; animation: radiantShift 5s ease-in-out infinite, navGlowPulse 2.4s ease-in-out infinite; color: #ffffff; font-weight: 700; position: relative; z-index: 2; }
         .nav-tab.active i, .nav-tab.active span { position: relative; z-index: 2; color: #ffffff; }
@@ -373,7 +373,7 @@
         #analysisChartWrap { position: relative; width: 100%; }
         .analysis-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; background: var(--input-bg); border: 1px solid var(--border); }
         .analysis-chip .chip-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-        .alert-banner { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 16px; margin-bottom: 22px; border: 1.5px solid transparent; background: transparent; background-origin: border-box; position: sticky; top: var(--sticky-header-h, 84px); z-index: 195; overflow: hidden; box-shadow: 0 12px 34px -14px var(--node-glow, var(--node-color, var(--primary))), inset 0 0 0 1px rgba(255,255,255,0.03); animation: alertBannerIn 0.4s ease; transition: box-shadow 0.5s ease; }
+        .alert-banner { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 16px; margin-bottom: 22px; border: 1.5px solid transparent; background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); background-origin: border-box; position: sticky; top: var(--sticky-header-h, 84px); z-index: 195; overflow: hidden; box-shadow: 0 12px 34px -14px var(--node-glow, var(--node-color, var(--primary))), inset 0 0 0 1px rgba(255,255,255,0.03); animation: alertBannerIn 0.4s ease; transition: box-shadow 0.5s ease; }
         .alert-banner::before { content: ''; position: absolute; inset: 0; border-radius: 16px; padding: 1.5px; background: linear-gradient(115deg, var(--node-color, var(--primary)), transparent 35%, transparent 65%, var(--node-color, var(--primary))); background-size: 250% 250%; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0.65; pointer-events: none; animation: alertBorderShift 6s ease-in-out infinite; }
         .alert-banner::after { content: ''; position: absolute; top: 0; left: -60%; width: 45%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.16), transparent); transform: skewX(-18deg); pointer-events: none; animation: alertShimmer 5s ease-in-out infinite; }
         @keyframes alertBannerIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
