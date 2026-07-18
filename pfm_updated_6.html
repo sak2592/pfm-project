@@ -1031,6 +1031,7 @@
                     </div>
                 </div>
                 <div id="growwHoldingsBody">
+                    <div class="invest-node-grid" id="growwSummaryGrid" style="margin-bottom:20px;"></div>
                     <div style="display:grid; grid-template-columns: 260px 1fr; gap:20px; margin-bottom:20px; align-items:center;">
                         <div class="chart-container" style="height:220px;"><canvas id="growwCategoryChart"></canvas></div>
                         <div class="dashboard-grid" id="growwCategoryLegend" style="margin-bottom:0;"></div>
@@ -7336,6 +7337,22 @@ async function confirmGrowwImport() {
 }
 
 let growwHoldingsCollapsed = false;
+// The interactive "Future Value" node beside Portfolio XIRR: which year horizon is currently
+// selected in its dropdown, and the current-value/rate its projection was last computed from
+// (kept in sync by renderGrowwHoldingsPanel so the dropdown's onchange can recompute instantly
+// without needing a full panel re-render).
+let growwPredictionSelectedYears = 5;
+let growwLastPortfolioCurrentValue = 0;
+let growwLastPortfolioRate = 0;
+
+function updateGrowwPredictionSelector() {
+    const select = document.getElementById('growwPredictionYearSelect');
+    const valueEl = document.getElementById('growwPredictionSelectorValue');
+    if (!select || !valueEl) return;
+    growwPredictionSelectedYears = parseInt(select.value, 10) || 5;
+    const projected = growwLastPortfolioCurrentValue * Math.pow(1 + growwLastPortfolioRate / 100, growwPredictionSelectedYears);
+    valueEl.textContent = fmt(projected);
+}
 // Which Groww category ("Equity - ELSS", "Equity - Largecap", etc.) is currently selected in the
 // legend widgets below the doughnut. '' means no selection, i.e. show every holding.
 let growwSelectedCategory = '';
@@ -7533,6 +7550,59 @@ function renderGrowwHoldingsPanel() {
     const body = document.getElementById('growwHoldingsBody');
     if (body) body.style.display = growwHoldingsCollapsed ? 'none' : '';
 
+    // Whole-portfolio summary cards: always computed from EVERY Groww holding, regardless of
+    // whatever category filter is currently applied to the table below, so this always answers
+    // "how much have I invested overall, and what's my overall return" at a glance.
+    // Portfolio-level XIRR blend: invested-value-weighted average of each holding's own XIRR.
+    // Not a true XIRR of the combined cash-flow stream, just a quick weighted approximation —
+    // same method as the table's TOTAL row uses, computed here across the FULL portfolio.
+    const xirrHoldingsAll = growwAssets.filter(a => a.xirr !== null && a.xirr !== undefined);
+    const xirrWeightAll = xirrHoldingsAll.reduce((s, a) => s + a.purchaseValue, 0);
+    const overallXirr = xirrWeightAll > 0 ? xirrHoldingsAll.reduce((s, a) => s + a.xirr * a.purchaseValue, 0) / xirrWeightAll : null;
+
+    const summaryGrid = document.getElementById('growwSummaryGrid');
+    if (summaryGrid) {
+        const sInvested = growwAssets.reduce((s, a) => s + a.purchaseValue, 0);
+        const sCurrent = growwAssets.reduce((s, a) => s + a.currentValue, 0);
+        const sGain = sCurrent - sInvested;
+        const sReturn = sInvested > 0 ? (sGain / sInvested) * 100 : 0;
+        const gainColor = sGain >= 0 ? 'var(--secondary)' : 'var(--danger)';
+        const cards = [
+            { color: 'var(--info)', bg: 'rgba(59,130,246,0.15)', icon: 'fa-vault', label: 'Total Invested', value: fmt(sInvested), sub: growwAssets.length + ' holding' + (growwAssets.length === 1 ? '' : 's') },
+            { color: 'var(--primary)', bg: 'rgba(99,102,241,0.15)', icon: 'fa-wallet', label: 'Current Value', value: fmt(sCurrent), sub: 'As of last sync' },
+            { color: gainColor, bg: sGain >= 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', icon: sGain >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down', label: 'Total Gain / Loss', value: fmt(sGain), sub: 'Current \u2212 Invested' },
+            { color: 'var(--warning)', bg: 'rgba(245,158,11,0.15)', icon: 'fa-percentage', label: 'Overall Return', value: sReturn.toFixed(1) + '%', sub: 'Invested-value weighted' },
+            { color: 'var(--purple)', bg: 'rgba(139,92,246,0.15)', icon: 'fa-gauge-high', label: 'Portfolio XIRR', value: overallXirr === null ? '—' : overallXirr.toFixed(1) + '%', sub: overallXirr === null ? 'No XIRR in this sync' : 'Weighted by invested value' }
+        ];
+        // Keep these in sync so the year-selector card's onchange (updateGrowwPredictionSelector)
+        // can recompute its projection instantly without needing a full panel re-render.
+        growwLastPortfolioCurrentValue = sCurrent;
+        growwLastPortfolioRate = overallXirr === null ? sReturn : overallXirr;
+        const yearOptions = [1, 2, 3, 4, 5, 10, 12, 15, 17, 20];
+        const selectedProjected = sCurrent * Math.pow(1 + growwLastPortfolioRate / 100, growwPredictionSelectedYears);
+        const predictionCardHtml = '<div class="invest-node" style="--node-color:var(--cyan); --node-bg:rgba(6,182,212,0.15); --node-border:rgba(6,182,212,0.45);">' +
+            '<div class="invest-node-icon-badge"><i class="fas fa-hourglass-half"></i></div>' +
+            '<div class="invest-node-body">' +
+                '<div class="invest-node-label">Future Value</div>' +
+                '<div class="invest-node-value" id="growwPredictionSelectorValue">' + fmt(selectedProjected) + '</div>' +
+                '<select id="growwPredictionYearSelect" class="config-input" onchange="updateGrowwPredictionSelector()" onclick="event.stopPropagation()" style="width:auto; font-size:0.72rem; padding:2px 6px; margin-top:2px;">' +
+                    yearOptions.map(y => '<option value="' + y + '"' + (y === growwPredictionSelectedYears ? ' selected' : '') + '>in ' + y + ' yr' + (y === 1 ? '' : 's') + '</option>').join('') +
+                '</select>' +
+            '</div>' +
+        '</div>';
+        summaryGrid.innerHTML = cards.map(c => {
+            const nodeBorder = c.bg.replace(/[\d.]+\)$/, '0.45)');
+            return '<div class="invest-node" style="--node-color:' + c.color + '; --node-bg:' + c.bg + '; --node-border:' + nodeBorder + ';">' +
+                '<div class="invest-node-icon-badge"><i class="fas ' + c.icon + '"></i></div>' +
+                '<div class="invest-node-body">' +
+                    '<div class="invest-node-label">' + c.label + '</div>' +
+                    '<div class="invest-node-value">' + c.value + '</div>' +
+                    '<div class="invest-node-sub">' + c.sub + '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('') + predictionCardHtml;
+    }
+
     // Category breakdown chart — grouped by current value across whatever categories the
     // imported holdings carry (e.g. "Equity - ELSS", "Debt - Liquid", "Stocks", "Gold ETF")
     const catTotals = {};
@@ -7547,14 +7617,22 @@ function renderGrowwHoldingsPanel() {
     const legendEl = document.getElementById('growwCategoryLegend');
     if (legendEl) {
         const grandTotal = catLabels.reduce((s, c) => s + catTotals[c], 0);
+        // Per-category invested value too, so each node's card can show its own return% alongside
+        // how much of the portfolio it makes up — not just its current value.
+        const catInvested = {};
+        growwAssets.forEach(a => { catInvested[a.category] = (catInvested[a.category] || 0) + a.purchaseValue; });
         // Selecting a category that no longer exists in this sync (e.g. after re-import) falls back to "all"
         if (growwSelectedCategory && !catLabels.includes(growwSelectedCategory)) growwSelectedCategory = '';
         legendEl.innerHTML = catLabels.map((c, i) => {
             const pct = grandTotal > 0 ? (catTotals[c] / grandTotal) * 100 : 0;
             const isActive = growwSelectedCategory === c;
+            const cInvested = catInvested[c] || 0;
+            const cGain = catTotals[c] - cInvested;
+            const cReturn = cInvested > 0 ? (cGain / cInvested) * 100 : 0;
             return '<div class="dash-card" style="padding:10px 14px; cursor:pointer;' + (isActive ? ' outline:2px solid var(--primary); outline-offset:-1px;' : '') + '" onclick="filterGrowwByCategory(\'' + c.replace(/'/g, "&#39;") + '\')" title="Click to see only this category\'s holdings below">' +
                 '<div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;"><span style="width:10px; height:10px; border-radius:50%; background:' + colors[i % colors.length] + '; display:inline-block;"></span><span style="font-size:0.8rem; color:var(--text-muted);">' + c + '</span></div>' +
                 '<div style="font-weight:700;">' + fmt(catTotals[c]) + '</div>' +
+                '<div style="font-size:0.72rem; color:var(--text-muted);">Invested ' + fmt(cInvested) + ' &middot; <span style="color:' + (cGain >= 0 ? 'var(--secondary)' : 'var(--danger)') + ';">' + (cGain >= 0 ? '+' : '') + cReturn.toFixed(1) + '%</span></div>' +
                 '<div style="font-size:0.72rem; color:var(--text-muted);">' + pct.toFixed(1) + '% of portfolio' + (isActive ? ' &middot; <strong style="color:var(--primary);">selected</strong>' : '') + '</div>' +
             '</div>';
         }).join('');
