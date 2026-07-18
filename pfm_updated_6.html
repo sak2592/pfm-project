@@ -1278,7 +1278,7 @@
                     </div>
                     <div class="table-container">
                         <table>
-                            <thead><tr><th>Category</th><th>Amount</th><th>Frequency</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
+                            <thead><tr><th>Category</th><th>Amount</th><th>Frequency</th><th>Start</th><th>End</th><th>Actions</th></tr></thead>
                             <tbody id="recurringExpenseTable"></tbody>
                         </table>
                     </div>
@@ -1290,7 +1290,7 @@
                     </div>
                     <div class="table-container">
                         <table>
-                            <thead><tr><th>Category</th><th>Fund/Scheme</th><th>Amount</th><th>Step-up</th><th>Frequency</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
+                            <thead><tr><th>Category</th><th>Fund/Scheme</th><th>Amount</th><th>Step-up</th><th>Frequency</th><th>Start</th><th>End</th><th>Actions</th></tr></thead>
                             <tbody id="recurringInvestmentTable"></tbody>
                         </table>
                     </div>
@@ -1838,6 +1838,7 @@ function loadData() {
             });
             if (!state.assets) state.assets = JSON.parse(JSON.stringify(DEFAULT_ASSETS));
             if (!state.recurringItems) state.recurringItems = JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS));
+            state.recurringItems.forEach(r => { r.active = true; });
             if (!state.salaryHistory) state.salaryHistory = [];
             if (!state.monthlyBudgetTargets) state.monthlyBudgetTargets = [];
             if (typeof state.openingSavings !== 'number') state.openingSavings = 0;
@@ -2101,6 +2102,11 @@ loadData = async function() {
             });
             if (!state.assets) state.assets = JSON.parse(JSON.stringify(DEFAULT_ASSETS));
             if (!state.recurringItems) state.recurringItems = JSON.parse(JSON.stringify(DEFAULT_RECURRING_ITEMS));
+            // The pause/resume toggle for Fixed Expenses/Investments was removed (it caused a
+            // cross-device sync bug where a stale tab could silently re-pause an item that was
+            // resumed elsewhere). Force any old paused item back to active so it's the same
+            // fixed, non-toggleable state on every device from now on.
+            state.recurringItems.forEach(r => { r.active = true; });
             if (!state.monthlyBudgetTargets) state.monthlyBudgetTargets = [];
             try { localStorage.setItem('pfms_v3', JSON.stringify(state)); } catch(e) {}
             return;
@@ -5275,26 +5281,22 @@ function deleteRecurringItem(id) {
     showToast('Fixed item deleted', 'info');
 }
 
-function toggleRecurringActive(id) {
-    const rule = state.recurringItems.find(r => r.id === id);
-    if (!rule) return;
-    rule.active = !rule.active;
-    regenerateRuleInstances(id);
-    saveState(); renderAll();
-    showToast(rule.active ? 'Fixed item resumed' : 'Fixed item paused', 'info');
-}
+// The pause/resume toggle for Fixed Expenses/Investments was removed: it stored
+// active/paused state per-item in shared data, but a stale browser tab (e.g. left
+// open on a phone) could resync an old value and silently flip it back - "why did
+// my fixed investment pause itself on my other device" bugs. Fixed items are now
+// always active everywhere; loadData() below force-migrates any old paused item.
 
 function renderRecurringExpense() {
     const tbody = document.getElementById('recurringExpenseTable');
     if (!tbody) return;
     const rules = (state.recurringItems || []).filter(r => r.type === 'Expense').sort((a, b) => parseDate(a.startDate) - parseDate(b.startDate));
     if (rules.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>No fixed expenses set up yet</p></div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>No fixed expenses set up yet</p></div></td></tr>';
         return;
     }
     tbody.innerHTML = rules.map(r => {
-        const statusBadge = r.active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-warning">Paused</span>';
-        return '<tr><td><span class="badge badge-danger">' + r.category + '</span>' + (r.subcategory ? '<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">' + r.subcategory + '</div>' : '') + '</td><td style="font-weight:700;">' + fmt(r.amount) + '</td><td>' + r.frequency + '</td><td>' + formatMonth(r.startDate) + '</td><td>' + (r.endDate ? formatMonth(r.endDate) : 'Ongoing') + '</td><td>' + statusBadge + '</td><td><div class="action-btns"><button class="action-btn edit" onclick="editRecurringItem(\'' + r.id + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="action-btn" style="background:rgba(245,158,11,0.15); color:var(--warning);" onclick="toggleRecurringActive(\'' + r.id + '\')" title="' + (r.active ? 'Pause' : 'Resume') + '"><i class="fas fa-' + (r.active ? 'pause' : 'play') + '"></i></button><button class="action-btn delete" onclick="deleteRecurringItem(\'' + r.id + '\')" title="Delete"><i class="fas fa-trash"></i></button></div></td></tr>';
+        return '<tr><td><span class="badge badge-danger">' + r.category + '</span>' + (r.subcategory ? '<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">' + r.subcategory + '</div>' : '') + '</td><td style="font-weight:700;">' + fmt(r.amount) + '</td><td>' + r.frequency + '</td><td>' + formatMonth(r.startDate) + '</td><td>' + (r.endDate ? formatMonth(r.endDate) : 'Ongoing') + '</td><td><div class="action-btns"><button class="action-btn edit" onclick="editRecurringItem(\'' + r.id + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteRecurringItem(\'' + r.id + '\')" title="Delete"><i class="fas fa-trash"></i></button></div></td></tr>';
     }).join('');
 }
 
@@ -5303,14 +5305,13 @@ function renderRecurringInvestment() {
     if (!tbody) return;
     const rules = (state.recurringItems || []).filter(r => r.type === 'Investment').sort((a, b) => parseDate(a.startDate) - parseDate(b.startDate));
     if (rules.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>No fixed investments set up yet</p></div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>No fixed investments set up yet</p></div></td></tr>';
         return;
     }
     tbody.innerHTML = rules.map(r => {
-        const statusBadge = r.active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-warning">Paused</span>';
         const stepUp = r.escalationPct ? ('+' + r.escalationPct + '%/yr') : '—';
         const fundCell = r.fundName ? '<strong>' + r.fundName + '</strong>' : '<span style="color:var(--text-muted);">—</span>';
-        return '<tr><td><span class="badge badge-primary">' + r.category + '</span>' + (r.subcategory ? '<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">' + r.subcategory + '</div>' : '') + '</td><td>' + fundCell + '</td><td style="font-weight:700;">' + fmt(r.amount) + '</td><td>' + stepUp + '</td><td>' + r.frequency + '</td><td>' + formatMonth(r.startDate) + '</td><td>' + (r.endDate ? formatMonth(r.endDate) : 'Ongoing') + '</td><td>' + statusBadge + '</td><td><div class="action-btns"><button class="action-btn edit" onclick="editRecurringItem(\'' + r.id + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="action-btn" style="background:rgba(245,158,11,0.15); color:var(--warning);" onclick="toggleRecurringActive(\'' + r.id + '\')" title="' + (r.active ? 'Pause' : 'Resume') + '"><i class="fas fa-' + (r.active ? 'pause' : 'play') + '"></i></button><button class="action-btn delete" onclick="deleteRecurringItem(\'' + r.id + '\')" title="Delete"><i class="fas fa-trash"></i></button></div></td></tr>';
+        return '<tr><td><span class="badge badge-primary">' + r.category + '</span>' + (r.subcategory ? '<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">' + r.subcategory + '</div>' : '') + '</td><td>' + fundCell + '</td><td style="font-weight:700;">' + fmt(r.amount) + '</td><td>' + stepUp + '</td><td>' + r.frequency + '</td><td>' + formatMonth(r.startDate) + '</td><td>' + (r.endDate ? formatMonth(r.endDate) : 'Ongoing') + '</td><td><div class="action-btns"><button class="action-btn edit" onclick="editRecurringItem(\'' + r.id + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="action-btn delete" onclick="deleteRecurringItem(\'' + r.id + '\')" title="Delete"><i class="fas fa-trash"></i></button></div></td></tr>';
     }).join('');
 }
 
